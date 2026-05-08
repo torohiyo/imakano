@@ -2,8 +2,66 @@
 
 import { PlayerState } from '@/lib/types';
 
-function HeartIcon({ className }: { className?: string }) {
-  return <img src="/icons/icon-heart.png" alt="" className={className} draggable={false} />;
+// Portrait rendered as CSS background so the frame PNG's transparent center
+// correctly reveals the character image underneath
+function Portrait({
+  imakanoId,
+  width,
+  height,
+  borderRadius = '12px',
+  skillRing = false,
+  attackRing = false,
+  skillLabel = false,
+}: {
+  imakanoId: string;
+  width: number;
+  height: number;
+  borderRadius?: string;
+  skillRing?: boolean;
+  attackRing?: boolean;
+  skillLabel?: boolean;
+}) {
+  return (
+    <div
+      className="relative flex-shrink-0 overflow-hidden"
+      style={{
+        width,
+        height,
+        borderRadius,
+        backgroundImage: `url('/imakano/${imakanoId}.png')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'top center',
+        boxShadow: attackRing
+          ? '0 0 18px rgba(220,38,38,0.6)'
+          : skillRing
+          ? '0 0 20px rgba(250,200,50,0.5)'
+          : '0 4px 20px rgba(0,0,0,0.5)',
+        outline: attackRing
+          ? '2px solid rgba(220,38,38,0.8)'
+          : skillRing
+          ? '2px solid rgba(250,200,50,0.7)'
+          : 'none',
+      }}
+    >
+      {/* Frame overlay — transparent center shows character via CSS background */}
+      <img
+        src="/icons/portrait-frame.png"
+        alt=""
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        style={{ objectFit: 'fill' }}
+        draggable={false}
+      />
+      {/* Skill label */}
+      {skillLabel && (
+        <div
+          className="absolute bottom-0 inset-x-0 py-1 text-center pointer-events-none"
+          style={{ background: 'linear-gradient(to top, rgba(160,110,0,0.9), transparent)' }}
+        >
+          <span className="text-yellow-200 text-[9px] font-bold tracking-[0.18em] uppercase">Skill</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 interface Props {
@@ -15,117 +73,159 @@ interface Props {
   onPortraitTap?: () => void;
 }
 
-export default function PlayerPanel({ player, isCurrent = false, variant = 'full', direction, onAttack, onPortraitTap }: Props) {
+export default function PlayerPanel({
+  player,
+  isCurrent = false,
+  variant = 'full',
+  direction,
+  onAttack,
+  onPortraitTap,
+}: Props) {
   const imakanoId = player.imakano.id;
   const hp = player.happiness;
-  const hpColor = hp <= 0 ? 'text-red-400' : hp >= 8 ? 'text-yellow-300' : 'text-pink-300';
-  const heartColor = hp <= 0 ? 'text-red-400' : 'text-pink-400';
+  const hpColor = hp <= 0 ? '#f87171' : hp >= 8 ? '#fde047' : '#f9a8d4';
 
-  // ── North ──
+  // ── North (opponent — mirrors south layout) ──
   if (variant === 'north') {
     const inner = (
-      <div className={`flex items-center px-4 py-2 gap-4 w-full
-        ${onAttack ? 'hover:bg-red-950/40' : ''}`}
-        style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.65), rgba(0,0,0,0.30))' }}
+      <div
+        className={`flex items-center justify-center gap-5 px-4 py-3 border-b transition-colors
+          ${onAttack ? 'active:bg-red-950/30' : ''}`}
+        style={{
+          borderColor: 'rgba(255,255,255,0.05)',
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.70), rgba(0,0,0,0.35))',
+        }}
       >
-        <div className={`relative w-[72px] h-[90px] rounded-xl overflow-hidden flex-shrink-0 shadow-lg transition-all
-          ${onAttack ? 'ring-2 ring-red-500 shadow-[0_0_18px_rgba(220,38,38,0.55)]' : 'ring-1 ring-white/10'}`}>
-          <img src={`/imakano/${imakanoId}.png`} alt="" className="w-full h-full object-cover object-top" draggable={false} />
-          <img src="/icons/portrait-frame.png" alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" draggable={false} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-white/90 text-sm font-semibold tracking-wide truncate">{player.name}</p>
-          <p className="text-white/40 text-[11px] truncate">{player.imakano.name}</p>
-          <div className="flex items-center gap-1 mt-1.5">
-            <div className="flex gap-0.5">
-              {Array.from({ length: Math.min(player.hand.length, 6) }, (_, i) => (
-                <div key={i} className="w-[9px] h-3 rounded-[2px] bg-gradient-to-b from-blue-400/60 to-blue-700/60 border border-blue-300/20" />
-              ))}
-              {player.hand.length > 6 && <span className="text-white/30 text-[8px] ml-0.5">+{player.hand.length - 6}</span>}
-            </div>
+        <Portrait
+          imakanoId={imakanoId}
+          width={90}
+          height={112}
+          borderRadius="14px"
+          attackRing={!!onAttack}
+        />
+
+        <div className="flex flex-col gap-0.5">
+          {/* Imakano name — large and prominent */}
+          <p className="text-white font-bold text-lg leading-tight">{player.imakano.name}</p>
+          {/* Player name — small, de-emphasized */}
+          <p className="text-white/35 text-[11px] tracking-wide">{player.name}</p>
+          {/* Happiness */}
+          <div className="flex items-end gap-1.5 mt-1">
+            <span className="text-4xl font-bold tabular-nums leading-none" style={{ color: hpColor }}>
+              {hp}
+            </span>
+            <span className="text-pink-400 text-2xl leading-none mb-0.5">♥</span>
           </div>
-        </div>
-        <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
-          <HeartIcon className={`w-4 h-4 ${heartColor}`} />
-          <span className={`text-3xl font-bold tabular-nums leading-none ${hpColor}`}>{hp}</span>
+          {/* Hand count */}
+          <div className="flex gap-0.5 mt-1">
+            {Array.from({ length: Math.min(player.hand.length, 7) }, (_, i) => (
+              <div key={i} className="w-[8px] h-[11px] rounded-[2px]"
+                style={{ background: 'linear-gradient(to bottom, rgba(148,163,184,0.5), rgba(100,116,139,0.3))', border: '1px solid rgba(255,255,255,0.1)' }} />
+            ))}
+            {player.hand.length > 7 && (
+              <span className="text-white/25 text-[9px] ml-0.5">+{player.hand.length - 7}</span>
+            )}
+          </div>
         </div>
       </div>
     );
 
-    return onAttack ? <button onClick={onAttack} className="w-full text-left">{inner}</button> : inner;
+    return onAttack
+      ? <button onClick={onAttack} className="w-full text-left">{inner}</button>
+      : inner;
   }
 
-  // ── Side ──
+  // ── Side (East / West) ──
   if (variant === 'side') {
     const deg = direction === 'east' ? 90 : -90;
     const inner = (
       <div
-        className={`flex items-center justify-center h-full transition-colors
-          ${onAttack ? 'bg-red-950/20' : 'bg-black/20'}`}
-        style={{ width: 52, borderLeftWidth: direction === 'east' ? 1 : 0, borderRightWidth: direction === 'west' ? 1 : 0, borderStyle: 'solid', borderColor: 'rgba(255,255,255,0.05)' }}
+        className={`flex items-center justify-center h-full transition-colors ${onAttack ? 'active:bg-red-950/20' : ''}`}
+        style={{
+          width: 52,
+          borderLeftWidth: direction === 'east' ? 1 : 0,
+          borderRightWidth: direction === 'west' ? 1 : 0,
+          borderStyle: 'solid',
+          borderColor: 'rgba(255,255,255,0.05)',
+          background: 'rgba(0,0,0,0.25)',
+        }}
       >
         <div
           className="flex items-center gap-2"
           style={{ transform: `rotate(${deg}deg)`, whiteSpace: 'nowrap', pointerEvents: 'none' }}
         >
-          <div className={`relative w-10 h-12 rounded-lg overflow-hidden flex-shrink-0 shadow-md transition-all
-            ${onAttack ? 'ring-2 ring-red-500 shadow-[0_0_12px_rgba(220,38,38,0.5)]' : 'ring-1 ring-white/10'}`}>
-            <img src={`/imakano/${imakanoId}.png`} alt="" className="w-full h-full object-cover object-top" draggable={false} />
-            <img src="/icons/portrait-frame.png" alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" draggable={false} />
-          </div>
+          <Portrait
+            imakanoId={imakanoId}
+            width={36}
+            height={45}
+            borderRadius="6px"
+            attackRing={!!onAttack}
+          />
           <div className="flex flex-col gap-0.5">
-            <p className="text-white/80 text-[10px] font-semibold">{player.name}</p>
+            <p className="text-white font-bold text-[11px] leading-tight">{player.imakano.name}</p>
+            <p className="text-white/30 text-[9px]">{player.name}</p>
             <div className="flex items-center gap-1">
-              <HeartIcon className={`w-3 h-3 ${heartColor}`} />
-              <span className={`text-xl font-bold tabular-nums ${hpColor}`}>{hp}</span>
+              <span className="text-xl font-bold tabular-nums" style={{ color: hpColor }}>{hp}</span>
+              <span className="text-pink-400 text-sm">♥</span>
             </div>
           </div>
         </div>
       </div>
     );
 
-    return onAttack ? <button onClick={onAttack} className="h-full block">{inner}</button> : inner;
+    return onAttack
+      ? <button onClick={onAttack} className="h-full block">{inner}</button>
+      : inner;
   }
 
-  // ── Full (South) ──
+  // ── Full (South — my panel) ──
   return (
-    <div className={`px-5 py-3 border-t transition-colors
-      ${isCurrent ? 'border-cyan-700/40 bg-gradient-to-t from-cyan-950/25 to-transparent' : 'border-white/5'}`}>
+    <div
+      className={`px-5 py-3 border-t transition-colors ${isCurrent ? 'border-cyan-700/30' : 'border-white/5'}`}
+      style={{
+        background: isCurrent
+          ? 'linear-gradient(to top, rgba(8,40,60,0.5), transparent)'
+          : 'transparent',
+      }}
+    >
       <div className="flex items-center justify-center gap-6">
-        {/* Portrait — large, tappable for skill */}
+        {/* Portrait — tappable for skill */}
         <button
           onClick={onPortraitTap}
           disabled={!onPortraitTap}
-          className="relative flex-shrink-0 group"
+          className="flex-shrink-0"
           style={{ cursor: onPortraitTap ? 'pointer' : 'default' }}
         >
-          <div className="relative w-[120px] h-[150px] rounded-2xl overflow-hidden shadow-xl ring-1 ring-white/10">
-            <img src={`/imakano/${imakanoId}.png`} alt="" className="w-full h-full object-cover object-top" draggable={false} />
-            <img src="/icons/portrait-frame.png" alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" draggable={false} />
-          </div>
-          {/* Skill-available ring — golden pulse */}
-          {onPortraitTap && (
-            <>
-              <div className="absolute inset-0 rounded-2xl ring-2 ring-yellow-400 pointer-events-none"
-                style={{ boxShadow: '0 0 20px 2px rgba(250,200,50,0.45)', animation: 'pulse 1.8s ease-in-out infinite' }} />
-              <div className="absolute bottom-0 inset-x-0 rounded-b-2xl py-1 text-center pointer-events-none"
-                style={{ background: 'linear-gradient(to top, rgba(180,130,0,0.85), transparent)' }}>
-                <span className="text-yellow-200 text-[10px] font-bold tracking-widest uppercase">Skill</span>
-              </div>
-            </>
-          )}
+          <Portrait
+            imakanoId={imakanoId}
+            width={120}
+            height={150}
+            borderRadius="18px"
+            skillRing={!!onPortraitTap}
+            skillLabel={!!onPortraitTap}
+          />
         </button>
 
-        {/* Happiness + name */}
-        <div className="flex flex-col gap-1">
-          <p className="text-white/40 text-[11px] tracking-wider uppercase">{player.imakano.name}</p>
-          <p className="text-white/90 text-base font-bold tracking-wide">{player.name}</p>
-          <div className="flex items-end gap-2 mt-1">
-            <span className={`text-6xl font-bold tabular-nums leading-none ${hpColor}`}
-              style={{ textShadow: hp <= 0 ? '0 0 20px rgba(239,68,68,0.6)' : '0 0 20px rgba(244,114,182,0.4)' }}>
+        {/* Info + Happiness */}
+        <div className="flex flex-col gap-0.5">
+          {/* Imakano name — large, main identity */}
+          <p className="text-white font-bold text-2xl leading-tight">{player.imakano.name}</p>
+          {/* Player name — small, secondary */}
+          <p className="text-white/35 text-xs tracking-wide">{player.name}</p>
+          {/* Happiness — dominant visual element */}
+          <div className="flex items-end gap-2 mt-2">
+            <span
+              className="text-6xl font-bold tabular-nums leading-none"
+              style={{ color: hpColor, textShadow: `0 0 24px ${hpColor}55` }}
+            >
               {hp}
             </span>
-            <HeartIcon className={`w-7 h-7 mb-1 ${heartColor}`} />
+            <img
+              src="/icons/icon-heart.png"
+              alt="♥"
+              className="w-9 h-9 mb-1"
+              draggable={false}
+            />
           </div>
         </div>
       </div>

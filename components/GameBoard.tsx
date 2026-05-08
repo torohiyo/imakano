@@ -307,7 +307,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
 
             {/* Field decoration + last played card */}
             <div className="relative flex items-center justify-center">
-              <img src="/field-center.png" alt="" className="absolute w-48 h-32 object-contain opacity-30 pointer-events-none" draggable={false} />
+              <img src="/field-center.png" alt="" className="absolute w-48 h-32 object-contain pointer-events-none" style={{ opacity: 0.18, mixBlendMode: 'screen' }} draggable={false} />
               {state.lastPlayedCard ? (
                 <button className="relative z-10" onClick={() => setZoomedCard(state.lastPlayedCard!)}>
                   <CardComp card={state.lastPlayedCard} size="md" />
