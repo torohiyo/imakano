@@ -21,10 +21,10 @@ export default function CardComp({ card, selected, dimmed, size = 'md' }: Props)
   if (size === 'sm') {
     return (
       <div
-        className={`relative rounded-xl overflow-hidden border-2 transition-all duration-150 select-none flex-shrink-0
-          ${cfg.border} ${selected ? `${cfg.glow} card-selected` : ''}
+        className={`relative rounded-xl overflow-hidden border-2 transition-all duration-200 select-none flex-shrink-0
+          ${cfg.border} ${selected ? `${cfg.glow} card-selected ring-2 ring-white/80` : ''}
           ${dimmed ? 'opacity-25 grayscale' : 'hover:brightness-110'}`}
-        style={{ width: 68, height: 96 }}
+        style={{ width: 68, height: 96, transform: selected ? 'translateY(-12px)' : undefined }}
       >
         <img
           src={`/cards/${card.def.id}.png`}
@@ -45,7 +45,7 @@ export default function CardComp({ card, selected, dimmed, size = 'md' }: Props)
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2" style={{ transform: selected ? 'translateY(-12px)' : undefined, transition: 'transform 0.2s' }}>
       <div
         className={`relative rounded-xl overflow-hidden border-2 transition-all select-none flex-shrink-0
           ${cfg.border} ${selected ? `${cfg.glow} ring-2 ring-white` : ''}

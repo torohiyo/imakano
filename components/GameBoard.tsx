@@ -19,8 +19,7 @@ interface Props {
 }
 
 function getImakanoId(state: GameState, playerIdx: number): string {
-  const p = state.players[playerIdx];
-  return p.imakano.isRental ? 'rental' : p.imakano.id;
+  return state.players[playerIdx].imakano.id;
 }
 
 export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd, onAfkWarning }: Props) {
@@ -125,9 +124,12 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
   }
 
   // ── Pending interactions (for current player or discard target) ──
-  if (hasPending && state.pending?.type !== 'DEFENSE_REACTION' && state.pending?.type !== 'PASS_DEVICE') {
+  // SELECT_TARGET is handled inline on the board via portrait tapping
+  if (hasPending && state.pending?.type !== 'DEFENSE_REACTION' && state.pending?.type !== 'PASS_DEVICE' && state.pending?.type !== 'SELECT_TARGET') {
     return <InteractionModal state={state} dispatch={dispatch} />;
   }
+
+  const isSelectingTarget = state.pending?.type === 'SELECT_TARGET';
 
   // ── Main board (mahjong layout) ──
   const unplayableTypes = new Set<string>(['defense']);
@@ -152,7 +154,11 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
       {/* ── North ── */}
       {northIdx >= 0 && (
         <div className={isCurrentHighlighted(northIdx) ? 'ring-1 ring-cyan-500/60' : ''}>
-          <PlayerPanel player={state.players[northIdx]} variant="north" />
+          <PlayerPanel
+            player={state.players[northIdx]}
+            variant="north"
+            onAttack={isSelectingTarget ? () => dispatch({ type: 'SELECT_TARGET', targetPlayerIdx: northIdx }) : undefined}
+          />
         </div>
       )}
 
@@ -161,8 +167,13 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
 
         {/* West */}
         {westIdx >= 0 ? (
-          <div className={isCurrentHighlighted(westIdx) ? 'ring-1 ring-cyan-500/60' : ''}>
-            <PlayerPanel player={state.players[westIdx]} variant="side" direction="west" />
+          <div className={`${isCurrentHighlighted(westIdx) ? 'ring-1 ring-cyan-500/60' : ''} self-stretch flex`}>
+            <PlayerPanel
+              player={state.players[westIdx]}
+              variant="side"
+              direction="west"
+              onAttack={isSelectingTarget ? () => dispatch({ type: 'SELECT_TARGET', targetPlayerIdx: westIdx }) : undefined}
+            />
           </div>
         ) : <div className="w-0" />}
 
@@ -202,6 +213,14 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
             </div>
           )}
 
+          {/* SELECT_TARGET prompt */}
+          {isSelectingTarget && (
+            <div className="bg-red-950/80 border border-red-700 rounded-xl px-4 py-2 text-center">
+              <p className="text-red-300 text-xs font-bold">⚔️ 攻撃対象を選択</p>
+              <p className="text-gray-400 text-[10px] mt-0.5">相手のカードをタップ</p>
+            </div>
+          )}
+
           {/* Waiting / processing overlay */}
           {(state.phase === 'draw' || state.phase === 'end_turn' || state.phase === 'resolve') && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/30">
@@ -220,8 +239,13 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
 
         {/* East */}
         {eastIdx >= 0 ? (
-          <div className={isCurrentHighlighted(eastIdx) ? 'ring-1 ring-cyan-500/60' : ''}>
-            <PlayerPanel player={state.players[eastIdx]} variant="side" direction="east" />
+          <div className={`${isCurrentHighlighted(eastIdx) ? 'ring-1 ring-cyan-500/60' : ''} self-stretch flex`}>
+            <PlayerPanel
+              player={state.players[eastIdx]}
+              variant="side"
+              direction="east"
+              onAttack={isSelectingTarget ? () => dispatch({ type: 'SELECT_TARGET', targetPlayerIdx: eastIdx }) : undefined}
+            />
           </div>
         ) : <div className="w-0" />}
       </div>

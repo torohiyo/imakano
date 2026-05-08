@@ -22,57 +22,108 @@ function HappinessBar({ value }: { value: number }) {
   );
 }
 
+function FaceDownCards({ count }: { count: number }) {
+  const show = Math.min(count, 7);
+  return (
+    <div className="flex items-center" style={{ height: 28 }}>
+      {Array.from({ length: show }, (_, i) => (
+        <div
+          key={i}
+          className="rounded border border-blue-800 bg-gradient-to-br from-blue-950 to-blue-900 flex-shrink-0"
+          style={{ width: 16, height: 24, marginLeft: i > 0 ? -6 : 0, zIndex: i }}
+        />
+      ))}
+      {count > show && (
+        <span className="text-gray-500 text-[9px] ml-1">+{count - show}</span>
+      )}
+    </div>
+  );
+}
+
 interface Props {
   player: PlayerState;
   isCurrent?: boolean;
   variant?: 'full' | 'north' | 'side';
   direction?: 'east' | 'west';
+  onAttack?: () => void;
 }
 
-export default function PlayerPanel({ player, isCurrent = false, variant = 'full', direction }: Props) {
-  const imakanoId = player.imakano.isRental ? 'rental' : player.imakano.id;
+export default function PlayerPanel({ player, isCurrent = false, variant = 'full', direction, onAttack }: Props) {
+  const imakanoId = player.imakano.id;
 
   // ── North (top of board) ──
   if (variant === 'north') {
-    return (
-      <div className="flex items-center gap-3 px-4 py-2 bg-gray-900/60 border-b border-gray-800/60">
-        <div className="w-9 h-9 rounded-lg overflow-hidden border border-gray-700 flex-shrink-0">
+    const inner = (
+      <div className={`flex items-center gap-3 px-4 py-2 bg-gray-900/60 border-b border-gray-800/60 w-full
+        ${onAttack ? 'hover:bg-red-950/60 cursor-pointer' : ''}`}>
+        <div className={`w-10 h-12 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all
+          ${onAttack ? 'border-red-500 shadow-[0_0_10px_rgba(255,60,60,0.5)]' : 'border-gray-700'}`}>
           <img src={`/imakano/${imakanoId}.png`} alt="" className="w-full h-full object-cover object-top" draggable={false} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white text-xs font-bold truncate">{player.name}</p>
           <p className="text-gray-500 text-[9px] truncate">{player.imakano.name}</p>
+          <FaceDownCards count={player.hand.length} />
         </div>
-        <div className="flex items-center gap-1 flex-shrink-0">
-          <span className="text-pink-400 text-sm">♥</span>
-          <span className={`text-sm font-bold ${player.happiness < 0 ? 'text-red-400' : 'text-pink-300'}`}>{player.happiness}</span>
+        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          <div className="flex items-center gap-1">
+            <span className="text-pink-400 text-sm">♥</span>
+            <span className={`text-sm font-bold ${player.happiness < 0 ? 'text-red-400' : 'text-pink-300'}`}>{player.happiness}</span>
+          </div>
+          {onAttack && (
+            <span className="text-red-400 text-[9px] font-bold animate-pulse">タップ</span>
+          )}
         </div>
-        <div className="text-gray-600 text-[10px] flex-shrink-0">手札 {player.hand.length}</div>
       </div>
     );
+
+    if (onAttack) {
+      return <button onClick={onAttack} className="w-full text-left">{inner}</button>;
+    }
+    return inner;
   }
 
   // ── Side (East / West, rotated) ──
   if (variant === 'side') {
     const deg = direction === 'east' ? 90 : -90;
-    return (
-      <div className="flex items-center justify-center bg-gray-900/40 border-gray-800/60"
-        style={{ width: 52, borderLeftWidth: direction === 'east' ? 1 : 0, borderRightWidth: direction === 'west' ? 1 : 0, borderStyle: 'solid' }}>
+    const inner = (
+      <div
+        className={`flex items-center justify-center bg-gray-900/40 border-gray-800/60 h-full
+          ${onAttack ? 'bg-red-950/30 cursor-pointer' : ''}`}
+        style={{ width: 52, borderLeftWidth: direction === 'east' ? 1 : 0, borderRightWidth: direction === 'west' ? 1 : 0, borderStyle: 'solid' }}
+      >
         <div
           className="flex items-center gap-2"
           style={{ transform: `rotate(${deg}deg)`, whiteSpace: 'nowrap', pointerEvents: 'none' }}
         >
-          <div className="w-7 h-9 rounded overflow-hidden border border-gray-700 flex-shrink-0">
+          <div className={`w-8 h-10 rounded overflow-hidden border-2 flex-shrink-0 transition-all
+            ${onAttack ? 'border-red-500 shadow-[0_0_8px_rgba(255,60,60,0.5)]' : 'border-gray-700'}`}>
             <img src={`/imakano/${imakanoId}.png`} alt="" className="w-full h-full object-cover object-top" draggable={false} />
           </div>
           <div>
             <p className="text-white text-[10px] font-bold">{player.name}</p>
             <p className={`text-[10px] font-bold ${player.happiness < 0 ? 'text-red-400' : 'text-pink-400'}`}>♥ {player.happiness}</p>
-            <p className="text-gray-600 text-[9px]">手札 {player.hand.length}</p>
+            <div className="flex items-center" style={{ height: 20 }}>
+              {Array.from({ length: Math.min(player.hand.length, 5) }, (_, i) => (
+                <div key={i} className="rounded border border-blue-800 bg-blue-950 flex-shrink-0"
+                  style={{ width: 10, height: 14, marginLeft: i > 0 ? -4 : 0 }} />
+              ))}
+              {player.hand.length > 5 && <span className="text-gray-500 text-[8px] ml-0.5">+{player.hand.length - 5}</span>}
+            </div>
+            {onAttack && <p className="text-red-400 text-[9px] font-bold animate-pulse">タップ</p>}
           </div>
         </div>
       </div>
     );
+
+    if (onAttack) {
+      return (
+        <button onClick={onAttack} className="h-full block">
+          {inner}
+        </button>
+      );
+    }
+    return inner;
   }
 
   // ── Full (South / current player) ──

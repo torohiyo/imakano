@@ -39,7 +39,7 @@ export default function InteractionModal({ state, dispatch }: Props) {
           <div className="flex flex-col gap-3">
             {state.players.map((p, i) => {
               if (i === cur) return null;
-              const imakanoId = p.imakano.isRental ? 'rental' : p.imakano.id;
+              const imakanoId = p.imakano.id;
               return (
                 <button
                   key={p.id}
