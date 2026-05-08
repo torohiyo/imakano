@@ -376,11 +376,12 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
 
           {/* Play phase */}
           {isMyTurn && state.phase === 'play' && !hasPending && (
-            <div className="flex items-end gap-3 px-4 pt-1 pb-4">
-              <div className="flex-1">
+            <div className="relative px-4 pt-1 pb-4">
+              <div style={{ paddingRight: 88 }}>
                 <HandView cards={myPlayer.hand} onTap={setZoomedCard} unplayableTypes={unplayableTypes} unplayableIds={unplayableIds} />
               </div>
-              <div className="pb-2">
+              {/* Turn end — fixed to bottom-right, never pushed off screen */}
+              <div className="absolute right-4 bottom-4">
                 <TurnEndButton onClick={() => dispatch({ type: 'SKIP_PLAY' })} />
               </div>
             </div>
@@ -388,11 +389,11 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
 
           {/* Not my turn */}
           {!isMyTurn && (
-            <div className="flex items-end gap-3 px-4 pt-1 pb-4">
-              <div className="flex-1">
+            <div className="relative px-4 pt-1 pb-4">
+              <div style={{ paddingRight: 88 }}>
                 <HandView cards={myPlayer.hand} onTap={setZoomedCard} unplayableTypes={new Set(['attack', 'defense', 'special'])} />
               </div>
-              <div className="flex flex-col items-end gap-2 pb-2 flex-shrink-0">
+              <div className="absolute right-4 bottom-4 flex flex-col items-end gap-2">
                 {afkSecondsLeft !== null ? (
                   <span className="text-red-400 text-xs font-bold animate-pulse">失格まで {afkSecondsLeft}秒</span>
                 ) : (

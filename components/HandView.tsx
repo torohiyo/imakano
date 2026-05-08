@@ -16,7 +16,7 @@ export default function HandView({ cards, onTap, unplayableTypes, unplayableIds 
   }
 
   return (
-    <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 justify-start px-2" style={{ minHeight: 96 }}>
+    <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-2 justify-start px-2" style={{ minHeight: 96, WebkitOverflowScrolling: 'touch' }}>
       {cards.map(card => {
         const isUnplayable = (unplayableTypes?.has(card.def.type) ?? false) || (unplayableIds?.has(card.instanceId) ?? false);
         return (
