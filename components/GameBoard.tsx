@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { GameState } from '@/lib/types';
 import { GameAction } from '@/lib/gameEngine';
+import { MAX_SPECIAL_PLAYS, MAX_ATTACK_PLAYS } from '@/lib/constants';
 import PassDeviceModal from './PassDeviceModal';
 import PlayerPanel from './PlayerPanel';
 import HandView from './HandView';
@@ -236,10 +237,27 @@ export default function GameBoard({ state, dispatch }: Props) {
         {/* Play phase */}
         {state.phase === 'play' && !state.pending && (
           <div className="flex flex-col gap-4">
+            {/* プレイ回数インジケーター */}
+            <div className="flex gap-3 text-xs">
+              <span className={state.specialPlaysThisTurn >= MAX_SPECIAL_PLAYS ? 'text-gray-600 line-through' : 'text-violet-400'}>
+                特殊 {state.specialPlaysThisTurn}/{MAX_SPECIAL_PLAYS}
+              </span>
+              <span className={state.attackPlaysThisTurn >= MAX_ATTACK_PLAYS ? 'text-gray-600 line-through' : 'text-red-400'}>
+                攻撃 {state.attackPlaysThisTurn}/{MAX_ATTACK_PLAYS}
+              </span>
+              <span className="text-gray-600">防御は反応のみ</span>
+            </div>
             <HandView
               cards={currentPlayer.hand}
               selectedId={selectedCardId}
               onSelect={setSelectedCardId}
+              unplayableTypes={(() => {
+                const s = new Set<string>();
+                s.add('defense');
+                if (state.specialPlaysThisTurn >= MAX_SPECIAL_PLAYS) s.add('special');
+                if (state.attackPlaysThisTurn >= MAX_ATTACK_PLAYS) s.add('attack');
+                return s;
+              })()}
             />
             <div className="flex gap-3">
               <button

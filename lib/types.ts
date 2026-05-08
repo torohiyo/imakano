@@ -92,4 +92,6 @@ export interface GameState {
   logSeq: number;
   winner: PlayerState | null;
   turnNumber: number;
+  specialPlaysThisTurn: number;
+  attackPlaysThisTurn: number;
 }

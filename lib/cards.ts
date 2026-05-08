@@ -132,6 +132,14 @@ export const CARD_DEFS: CardDef[] = [
     effectText: '自分の幸せゲージ +1',
     count: 2,
   },
+  {
+    id: 'marriage',
+    name: '婚姻届',
+    type: 'special',
+    effectKey: 'marriage',
+    effectText: '幸せゲージが10以上の時にプレイすると結婚勝利',
+    count: 3,
+  },
 ];
 
 let _instanceCounter = 0;
