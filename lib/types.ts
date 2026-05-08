@@ -94,4 +94,5 @@ export interface GameState {
   turnNumber: number;
   specialPlaysThisTurn: number;
   attackPlaysThisTurn: number;
+  lastPlayedCard: CardInstance | null;
 }

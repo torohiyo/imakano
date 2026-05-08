@@ -27,16 +27,19 @@ export default function GameBoard({ state, dispatch }: Props) {
 
   const cur = state.currentPlayerIndex;
   const currentPlayer = state.players[cur];
+  const n = state.players.length;
+
+  // Player position assignments (mahjong-style, clockwise from South)
+  const eastIdx  = n >= 3 ? (cur + 1) % n : -1;
+  const northIdx = n >= 2 ? (cur + (n === 2 ? 1 : 2)) % n : -1;
+  const westIdx  = n >= 4 ? (cur + 3) % n : -1;
 
   useEffect(() => {
     if (state.phase !== 'defense') setDefensePassConfirmed(false);
   }, [state.phase]);
 
-  useEffect(() => {
-    setSelectedCardId(null);
-  }, [state.phase]);
+  useEffect(() => { setSelectedCardId(null); }, [state.phase]);
 
-  // Auto-draw
   useEffect(() => {
     if (state.phase === 'draw') {
       const t = setTimeout(() => dispatch({ type: 'DRAW_PHASE_DONE' }), 600);
@@ -44,7 +47,6 @@ export default function GameBoard({ state, dispatch }: Props) {
     }
   }, [state.phase, dispatch]);
 
-  // Auto end_turn
   useEffect(() => {
     if (state.phase === 'end_turn') {
       const t = setTimeout(() => dispatch({ type: 'END_TURN' }), 700);
@@ -111,16 +113,12 @@ export default function GameBoard({ state, dispatch }: Props) {
     const defensibleCards = target.hand.filter(c =>
       ['defense', 'super_defense', 'ultra_defense'].includes(c.def.effectKey)
     );
-
     return (
       <div className="min-h-screen flex flex-col p-4 gap-4">
-        {/* Attack info */}
         <div className="bg-red-950/80 border border-red-600 rounded-2xl p-4 glow-red">
           <p className="text-red-300 text-xs font-bold tracking-wider mb-2">⚔️ UNDER ATTACK</p>
           <div className="flex items-center gap-4">
-            <div className="flex-shrink-0">
-              <CardComp card={attackCard} size="sm" />
-            </div>
+            <div className="flex-shrink-0"><CardComp card={attackCard} size="sm" /></div>
             <div>
               <p className="text-white font-bold">{state.players[attackerIdx].name}</p>
               <p className="text-gray-400 text-sm">「{attackCard.def.name}」を使用</p>
@@ -128,35 +126,24 @@ export default function GameBoard({ state, dispatch }: Props) {
             </div>
           </div>
         </div>
-
         <p className="text-white font-bold text-center">{target.name} — 防御しますか？</p>
-
-        {/* Defense cards */}
         {defensibleCards.length > 0 ? (
           <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2 justify-center">
             {defensibleCards.map(c => (
-              <button
-                key={c.instanceId}
-                onClick={() => dispatch({ type: 'DEFEND', cardInstanceId: c.instanceId })}
-                className="flex-shrink-0"
-              >
+              <button key={c.instanceId} onClick={() => dispatch({ type: 'DEFEND', cardInstanceId: c.instanceId })} className="flex-shrink-0">
                 <CardComp card={c} size="md" />
               </button>
             ))}
           </div>
         ) : (
-          <div className="text-center text-gray-600 text-sm py-4 border border-gray-800 rounded-xl">
-            防御できるカードがありません
-          </div>
+          <div className="text-center text-gray-600 text-sm py-4 border border-gray-800 rounded-xl">防御できるカードがありません</div>
         )}
-
         <button
           onClick={() => dispatch({ type: 'SKIP_DEFENSE' })}
           className="w-full py-4 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-xl text-gray-300 font-bold"
         >
           防御しない（攻撃を受ける）
         </button>
-
         <GameLog log={state.log} maxItems={4} />
       </div>
     );
@@ -167,129 +154,170 @@ export default function GameBoard({ state, dispatch }: Props) {
     return <InteractionModal state={state} dispatch={dispatch} />;
   }
 
-  // ── Main game UI ──
+  // ── Main game board (mahjong layout) ──
   const unplayableTypes = new Set<string>(['defense']);
   if (state.specialPlaysThisTurn >= MAX_SPECIAL_PLAYS) unplayableTypes.add('special');
   if (state.attackPlaysThisTurn >= MAX_ATTACK_PLAYS) unplayableTypes.add('attack');
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-black/40 border-b border-gray-800/60 backdrop-blur-sm">
-        <span className="text-gray-600 text-xs">Turn {state.turnNumber}</span>
-        <span className="text-cyan-600 text-xs font-medium">{currentPlayer.name}</span>
-        <span className="text-gray-600 text-xs">山札 {state.deck.length}</span>
-      </div>
+    <div className="min-h-screen flex flex-col bg-[#07070e]">
 
-      {/* Other players */}
-      <div className="flex gap-2 px-3 py-2 overflow-x-auto hide-scrollbar border-b border-gray-800/40">
-        {state.players.map((p, i) =>
-          i !== cur ? (
-            <PlayerPanel key={p.id} player={p} isCurrent={false} compact />
-          ) : null
-        )}
-      </div>
+      {/* ── North ── */}
+      {northIdx >= 0 && (
+        <PlayerPanel player={state.players[northIdx]} variant="north" />
+      )}
 
-      {/* Current player */}
-      <div className="px-4 pt-3 pb-2">
-        <PlayerPanel player={currentPlayer} isCurrent compact={false} />
-      </div>
+      {/* ── Middle row: West | Center | East ── */}
+      <div className="flex-1 flex min-h-0">
 
-      {/* Phase area */}
-      <div className="flex-1 flex flex-col gap-3 px-4 py-2">
-
-        {/* Draw */}
-        {state.phase === 'draw' && (
-          <div className="text-center text-gray-600 animate-pulse text-sm py-4">
-            カードを引いています...
-          </div>
+        {/* West (rotated) */}
+        {westIdx >= 0 ? (
+          <PlayerPanel player={state.players[westIdx]} variant="side" direction="west" />
+        ) : (
+          <div className="w-0" />
         )}
 
-        {/* Skill */}
-        {state.phase === 'skill' && (
-          <div className="flex flex-col gap-3">
-            {currentPlayer.imakano.skillKey && !currentPlayer.skillUsedThisTurn && (
-              <div className="bg-yellow-950/60 border border-yellow-700/60 rounded-2xl p-4 glow-gold">
-                <p className="text-yellow-400 text-xs font-bold tracking-wider mb-1">✨ SKILL</p>
-                <p className="text-white font-bold">{currentPlayer.imakano.skillName}</p>
-                <p className="text-gray-400 text-xs mt-1 leading-relaxed">{currentPlayer.imakano.skillText}</p>
-              </div>
-            )}
-            {currentPlayer.imakano.skillKey && !currentPlayer.skillUsedThisTurn ? (
-              <button
-                onClick={() => dispatch({ type: 'USE_SKILL' })}
-                className="w-full py-4 bg-yellow-700 hover:bg-yellow-600 rounded-xl font-bold text-white glow-gold"
-              >
-                スキルを使う
-              </button>
-            ) : (
-              <div className="text-center text-gray-700 text-sm py-3 border border-gray-800 rounded-xl">
-                {currentPlayer.imakano.skillKey ? 'スキル使用済み' : 'スキルなし'}
-              </div>
-            )}
-            <button
-              onClick={() => dispatch({ type: 'SKIP_SKILL' })}
-              className="w-full py-3 bg-gray-900/60 hover:bg-gray-800 border border-gray-800 rounded-xl text-gray-500"
-            >
-              スキップ → カードフェーズへ
-            </button>
-          </div>
-        )}
-
-        {/* Play */}
-        {state.phase === 'play' && !state.pending && (
-          <div className="flex flex-col gap-3">
-            {/* Play quota */}
-            <div className="flex justify-center gap-4 text-xs">
-              <span className={state.specialPlaysThisTurn >= MAX_SPECIAL_PLAYS ? 'text-gray-700 line-through' : 'text-violet-400'}>
-                特殊 {state.specialPlaysThisTurn}/{MAX_SPECIAL_PLAYS}
-              </span>
-              <span className={state.attackPlaysThisTurn >= MAX_ATTACK_PLAYS ? 'text-gray-700 line-through' : 'text-red-400'}>
-                攻撃 {state.attackPlaysThisTurn}/{MAX_ATTACK_PLAYS}
-              </span>
+        {/* Center field */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-3 p-3 relative">
+          {/* Deck & trash info */}
+          <div className="flex items-center gap-4 text-xs">
+            <div className="flex items-center gap-1.5 bg-gray-900/70 border border-gray-700/60 rounded-lg px-3 py-1.5">
+              <span className="text-gray-400">山札</span>
+              <span className="text-white font-bold">{state.deck.length}</span>
             </div>
-
-            <HandView
-              cards={currentPlayer.hand}
-              selectedId={selectedCardId}
-              onSelect={setSelectedCardId}
-              unplayableTypes={unplayableTypes}
-            />
-
-            <div className="flex gap-3">
-              <button
-                disabled={!selectedCardId}
-                onClick={() => {
-                  if (selectedCardId) {
-                    dispatch({ type: 'PLAY_CARD', cardInstanceId: selectedCardId });
-                    setSelectedCardId(null);
-                  }
-                }}
-                className="flex-1 py-4 bg-cyan-700 hover:bg-cyan-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl font-bold text-white glow-cyan transition-all"
-              >
-                {selectedCardId ? 'プレイ' : 'カードを選択'}
-              </button>
-              <button
-                onClick={() => dispatch({ type: 'SKIP_PLAY' })}
-                className="py-4 px-5 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-xl text-gray-500"
-              >
-                パス
-              </button>
+            <div className="flex items-center gap-1.5 bg-gray-900/70 border border-gray-700/60 rounded-lg px-3 py-1.5">
+              <span className="text-gray-400">捨て札</span>
+              <span className="text-white font-bold">{state.trash.length}</span>
             </div>
           </div>
-        )}
 
-        {/* Transitional */}
-        {(state.phase === 'end_turn' || state.phase === 'resolve') && (
-          <div className="text-center text-gray-700 animate-pulse text-sm py-4">
-            処理中...
-          </div>
+          {/* Last played card */}
+          {state.lastPlayedCard ? (
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-gray-600 text-[9px] tracking-wider">LAST PLAYED</p>
+              <CardComp card={state.lastPlayedCard} size="md" />
+            </div>
+          ) : (
+            <div className="w-[120px] h-[168px] rounded-xl border-2 border-dashed border-gray-800/60 flex items-center justify-center">
+              <span className="text-gray-800 text-xs">場</span>
+            </div>
+          )}
+
+          {/* Trash top card (dimmed) */}
+          {state.trash.length > 0 && state.lastPlayedCard?.instanceId !== state.trash[0].instanceId && (
+            <div className="flex flex-col items-center gap-1 opacity-40">
+              <p className="text-gray-700 text-[9px]">トラッシュ</p>
+              <CardComp card={state.trash[0]} size="sm" dimmed />
+            </div>
+          )}
+
+          {/* Transitional overlay */}
+          {(state.phase === 'draw' || state.phase === 'end_turn' || state.phase === 'resolve') && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-xl">
+              <p className="text-gray-400 animate-pulse text-sm">処理中...</p>
+            </div>
+          )}
+        </div>
+
+        {/* East (rotated) */}
+        {eastIdx >= 0 ? (
+          <PlayerPanel player={state.players[eastIdx]} variant="side" direction="east" />
+        ) : (
+          <div className="w-0" />
         )}
       </div>
 
-      {/* Log */}
-      <div className="px-4 pb-6">
-        <GameLog log={state.log} />
+      {/* ── South: current player ── */}
+      <div className="border-t border-gray-800/80">
+        <PlayerPanel player={currentPlayer} isCurrent variant="full" />
+
+        {/* Phase area */}
+        <div className="px-4 pt-2 pb-1">
+
+          {/* Skill phase */}
+          {state.phase === 'skill' && (
+            <div className="flex flex-col gap-2">
+              {currentPlayer.imakano.skillKey && !currentPlayer.skillUsedThisTurn && (
+                <div className="bg-yellow-950/60 border border-yellow-700/60 rounded-xl p-3 glow-gold">
+                  <p className="text-yellow-400 text-[10px] font-bold tracking-wider mb-0.5">✨ SKILL</p>
+                  <p className="text-white text-sm font-bold">{currentPlayer.imakano.skillName}</p>
+                  <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{currentPlayer.imakano.skillText}</p>
+                </div>
+              )}
+              <div className="flex gap-2">
+                {currentPlayer.imakano.skillKey && !currentPlayer.skillUsedThisTurn ? (
+                  <button
+                    onClick={() => dispatch({ type: 'USE_SKILL' })}
+                    className="flex-1 py-3 bg-yellow-700 hover:bg-yellow-600 rounded-xl font-bold text-white text-sm glow-gold"
+                  >
+                    スキルを使う
+                  </button>
+                ) : (
+                  <div className="flex-1 text-center text-gray-700 text-sm py-3 border border-gray-800 rounded-xl">
+                    {currentPlayer.imakano.skillKey ? 'スキル使用済み' : 'スキルなし'}
+                  </div>
+                )}
+                <button
+                  onClick={() => dispatch({ type: 'SKIP_SKILL' })}
+                  className="flex-1 py-3 bg-gray-900/60 hover:bg-gray-800 border border-gray-800 rounded-xl text-gray-500 text-sm"
+                >
+                  スキップ
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Play phase */}
+          {state.phase === 'play' && !state.pending && (
+            <div className="flex flex-col gap-2">
+              {/* Quota */}
+              <div className="flex justify-center gap-4 text-xs">
+                <span className={state.specialPlaysThisTurn >= MAX_SPECIAL_PLAYS ? 'text-gray-700 line-through' : 'text-violet-400'}>
+                  特殊 {state.specialPlaysThisTurn}/{MAX_SPECIAL_PLAYS}
+                </span>
+                <span className={state.attackPlaysThisTurn >= MAX_ATTACK_PLAYS ? 'text-gray-700 line-through' : 'text-red-400'}>
+                  攻撃 {state.attackPlaysThisTurn}/{MAX_ATTACK_PLAYS}
+                </span>
+              </div>
+
+              {/* Hand + action */}
+              <HandView
+                cards={currentPlayer.hand}
+                selectedId={selectedCardId}
+                onSelect={setSelectedCardId}
+                unplayableTypes={unplayableTypes}
+              />
+
+              <div className="flex gap-2">
+                <button
+                  disabled={!selectedCardId}
+                  onClick={() => {
+                    if (selectedCardId) {
+                      dispatch({ type: 'PLAY_CARD', cardInstanceId: selectedCardId });
+                      setSelectedCardId(null);
+                    }
+                  }}
+                  className="flex-1 py-3.5 bg-cyan-700 hover:bg-cyan-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl font-bold text-white glow-cyan transition-all text-sm"
+                >
+                  {selectedCardId ? 'プレイ' : 'カードを選択'}
+                </button>
+
+                {/* Big end turn button */}
+                <button
+                  onClick={() => dispatch({ type: 'SKIP_PLAY' })}
+                  className="w-16 h-16 rounded-full bg-blue-700 hover:bg-blue-600 border-2 border-blue-400 shadow-[0_0_16px_rgba(60,130,255,0.5)] flex items-center justify-center flex-shrink-0 self-center"
+                >
+                  <span className="text-white text-[10px] font-bold text-center leading-tight flex flex-col"><span>ターン</span><span>終了</span></span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Game log */}
+        <div className="px-4 pb-4">
+          <GameLog log={state.log} maxItems={3} />
+        </div>
       </div>
     </div>
   );

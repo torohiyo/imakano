@@ -170,6 +170,7 @@ export function startGame(playerNames: string[]): GameState {
     turnNumber: 1,
     specialPlaysThisTurn: 0,
     attackPlaysThisTurn: 0,
+    lastPlayedCard: null,
   };
 }
 
@@ -277,6 +278,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         ...state,
         players,
         pendingCard: card,
+        lastPlayedCard: card,
         attackPlaysThisTurn: card.def.type === 'attack'
           ? state.attackPlaysThisTurn + 1
           : state.attackPlaysThisTurn,
@@ -572,6 +574,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
     // ===== ターン終了 =====
     case 'END_TURN': {
+      if (state.players.some(p => p.happiness < 0)) {
+        return endGameByHappiness(state);
+      }
       const n = state.players.length;
       const nextIdx = (state.currentPlayerIndex + 1) % n;
       const nextPlayer = state.players[nextIdx];
@@ -633,6 +638,14 @@ function canDefend(defKey: string, attackKey: string): boolean {
   if (defKey === 'super_defense') return ['attack', 'super_attack', 'spy', 'sister', 'bestfriend', 'father', 'letter', 'utsu_novel', 'ring', 'house', 'pet', 'disney', 'marriage'].includes(attackKey);
   if (defKey === 'ultra_defense') return ['attack', 'super_attack', 'ultra_attack'].includes(attackKey);
   return false;
+}
+
+function endGameByHappiness(state: GameState): GameState {
+  const winner = [...state.players].sort((a, b) => b.happiness - a.happiness)[0];
+  const players = state.players.map(p => p.id === winner.id ? { ...p, isWinner: true } : p);
+  const s: GameState = addLog({ ...state, players },
+    `💔 幸せゲージがマイナスに！${winner.name} の勝利（幸せ: ${winner.happiness}）`, 'win');
+  return { ...s, phase: 'finished', winner };
 }
 
 function endGame(state: GameState, winner: PlayerState): GameState {

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 export default function SetupPage() {
   const router = useRouter();
   const [playerCount, setPlayerCount] = useState(2);
-  const [names, setNames] = useState(['', '', '', '', '']);
+  const [names, setNames] = useState(['', '', '', '']);
 
   const handleStart = () => {
     const playerNames = names
@@ -27,7 +27,7 @@ export default function SetupPage() {
         <div>
           <p className="text-gray-300 text-sm mb-3 font-medium">プレイヤー人数</p>
           <div className="flex gap-2">
-            {[2, 3, 4, 5].map(n => (
+            {[2, 3, 4].map(n => (
               <button
                 key={n}
                 onClick={() => setPlayerCount(n)}
@@ -71,7 +71,7 @@ export default function SetupPage() {
       </div>
 
       <div className="text-center text-gray-600 text-xs max-w-xs">
-        <p>各プレイヤーはイマカノを1枚引き、幸せゲージ10になったら結婚勝利！</p>
+        <p>各プレイヤーはイマカノを1枚引き、幸せゲージ10以上で婚姻届をプレイすると結婚勝利！</p>
       </div>
     </div>
   );
