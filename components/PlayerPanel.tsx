@@ -1,44 +1,6 @@
 'use client';
 
 import { PlayerState } from '@/lib/types';
-import { HAPPINESS_MAX } from '@/lib/constants';
-
-function HappinessBar({ value }: { value: number }) {
-  const clamped = Math.max(0, value);
-  return (
-    <div className="flex gap-0.5 flex-wrap">
-      {Array.from({ length: HAPPINESS_MAX }, (_, i) => (
-        <div
-          key={i}
-          className={`h-1.5 rounded-full transition-all duration-300 ${
-            i < clamped
-              ? 'bg-pink-400 shadow-[0_0_5px_rgba(255,100,150,0.7)]'
-              : 'bg-gray-700'
-          }`}
-          style={{ width: i < clamped ? 16 : 13 }}
-        />
-      ))}
-    </div>
-  );
-}
-
-function FaceDownCards({ count }: { count: number }) {
-  const show = Math.min(count, 7);
-  return (
-    <div className="flex items-center" style={{ height: 28 }}>
-      {Array.from({ length: show }, (_, i) => (
-        <div
-          key={i}
-          className="rounded border border-blue-800 bg-gradient-to-br from-blue-950 to-blue-900 flex-shrink-0"
-          style={{ width: 16, height: 24, marginLeft: i > 0 ? -6 : 0, zIndex: i }}
-        />
-      ))}
-      {count > show && (
-        <span className="text-gray-500 text-[9px] ml-1">+{count - show}</span>
-      )}
-    </div>
-  );
-}
 
 interface Props {
   player: PlayerState;
@@ -46,40 +8,37 @@ interface Props {
   variant?: 'full' | 'north' | 'side';
   direction?: 'east' | 'west';
   onAttack?: () => void;
+  onPortraitTap?: () => void;
 }
 
-export default function PlayerPanel({ player, isCurrent = false, variant = 'full', direction, onAttack }: Props) {
+export default function PlayerPanel({ player, isCurrent = false, variant = 'full', direction, onAttack, onPortraitTap }: Props) {
   const imakanoId = player.imakano.id;
+  const happinessColor = player.happiness <= 0 ? 'text-red-400' : player.happiness >= 8 ? 'text-yellow-300' : 'text-pink-300';
 
   // ── North (top of board) ──
   if (variant === 'north') {
     const inner = (
       <div className={`flex items-center gap-3 px-4 py-2 bg-gray-900/60 border-b border-gray-800/60 w-full
         ${onAttack ? 'hover:bg-red-950/60 cursor-pointer' : ''}`}>
-        <div className={`w-10 h-12 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all
-          ${onAttack ? 'border-red-500 shadow-[0_0_10px_rgba(255,60,60,0.5)]' : 'border-gray-700'}`}>
+        <div className={`w-12 h-14 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-all
+          ${onAttack ? 'border-red-500 shadow-[0_0_12px_rgba(255,60,60,0.6)]' : 'border-gray-700'}`}>
           <img src={`/imakano/${imakanoId}.png`} alt="" className="w-full h-full object-cover object-top" draggable={false} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white text-xs font-bold truncate">{player.name}</p>
-          <p className="text-gray-500 text-[9px] truncate">{player.imakano.name}</p>
-          <FaceDownCards count={player.hand.length} />
-        </div>
-        <div className="flex flex-col items-end gap-1 flex-shrink-0">
-          <div className="flex items-center gap-1">
-            <span className="text-pink-400 text-sm">♥</span>
-            <span className={`text-sm font-bold ${player.happiness < 0 ? 'text-red-400' : 'text-pink-300'}`}>{player.happiness}</span>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-gray-500 text-[10px]">🃏</span>
+            <span className="text-gray-400 text-[10px]">{player.hand.length}</span>
           </div>
-          {onAttack && (
-            <span className="text-red-400 text-[9px] font-bold animate-pulse">タップ</span>
-          )}
+        </div>
+        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+          <span className={`text-2xl font-bold tabular-nums ${happinessColor}`}>{player.happiness}</span>
+          <span className="text-pink-500 text-[10px]">♥</span>
         </div>
       </div>
     );
 
-    if (onAttack) {
-      return <button onClick={onAttack} className="w-full text-left">{inner}</button>;
-    }
+    if (onAttack) return <button onClick={onAttack} className="w-full text-left">{inner}</button>;
     return inner;
   }
 
@@ -96,53 +55,47 @@ export default function PlayerPanel({ player, isCurrent = false, variant = 'full
           className="flex items-center gap-2"
           style={{ transform: `rotate(${deg}deg)`, whiteSpace: 'nowrap', pointerEvents: 'none' }}
         >
-          <div className={`w-8 h-10 rounded overflow-hidden border-2 flex-shrink-0 transition-all
-            ${onAttack ? 'border-red-500 shadow-[0_0_8px_rgba(255,60,60,0.5)]' : 'border-gray-700'}`}>
+          <div className={`w-9 h-11 rounded overflow-hidden border-2 flex-shrink-0 transition-all
+            ${onAttack ? 'border-red-500 shadow-[0_0_10px_rgba(255,60,60,0.5)]' : 'border-gray-700'}`}>
             <img src={`/imakano/${imakanoId}.png`} alt="" className="w-full h-full object-cover object-top" draggable={false} />
           </div>
           <div>
             <p className="text-white text-[10px] font-bold">{player.name}</p>
-            <p className={`text-[10px] font-bold ${player.happiness < 0 ? 'text-red-400' : 'text-pink-400'}`}>♥ {player.happiness}</p>
-            <div className="flex items-center" style={{ height: 20 }}>
-              {Array.from({ length: Math.min(player.hand.length, 5) }, (_, i) => (
-                <div key={i} className="rounded border border-blue-800 bg-blue-950 flex-shrink-0"
-                  style={{ width: 10, height: 14, marginLeft: i > 0 ? -4 : 0 }} />
-              ))}
-              {player.hand.length > 5 && <span className="text-gray-500 text-[8px] ml-0.5">+{player.hand.length - 5}</span>}
-            </div>
-            {onAttack && <p className="text-red-400 text-[9px] font-bold animate-pulse">タップ</p>}
+            <p className={`text-lg font-bold tabular-nums ${happinessColor}`}>{player.happiness}</p>
+            <p className="text-pink-500 text-[9px]">♥</p>
           </div>
         </div>
       </div>
     );
 
-    if (onAttack) {
-      return (
-        <button onClick={onAttack} className="h-full block">
-          {inner}
-        </button>
-      );
-    }
+    if (onAttack) return <button onClick={onAttack} className="h-full block">{inner}</button>;
     return inner;
   }
 
   // ── Full (South / current player) ──
   return (
     <div className={`flex gap-3 px-4 py-3 border-t ${isCurrent ? 'border-cyan-900/60 bg-gray-950/80' : 'border-gray-800/60'}`}>
-      <div className="relative w-14 h-16 rounded-xl overflow-hidden border-2 border-cyan-500/60 flex-shrink-0 shadow-[0_0_12px_rgba(0,229,255,0.2)]">
+      <button
+        onClick={onPortraitTap}
+        disabled={!onPortraitTap}
+        className={`relative w-16 h-20 rounded-xl overflow-hidden border-2 flex-shrink-0 transition-all
+          ${isCurrent ? 'border-cyan-500/80 shadow-[0_0_14px_rgba(0,229,255,0.3)]' : 'border-gray-700'}
+          ${onPortraitTap ? 'active:brightness-125 cursor-pointer' : ''}`}
+      >
         <img src={`/imakano/${imakanoId}.png`} alt="" className="w-full h-full object-cover object-top" draggable={false} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-cyan-400 text-[10px]">{player.imakano.name}</p>
-        <p className="text-white text-base font-bold truncate">{player.name}</p>
-        {player.imakano.skillName && (
-          <p className="text-yellow-400 text-[10px]">✨ {player.imakano.skillName}</p>
+        {onPortraitTap && (
+          <div className="absolute bottom-0 inset-x-0 bg-yellow-500/80 py-0.5">
+            <p className="text-black text-[8px] font-bold text-center">スキル</p>
+          </div>
         )}
-        <div className="flex items-center gap-2 mt-1.5">
-          <span className={`font-bold text-sm ${player.happiness < 0 ? 'text-red-400' : 'text-pink-400'}`}>♥ {player.happiness}</span>
-          <span className="text-gray-600 text-xs">/ {HAPPINESS_MAX}</span>
-          <HappinessBar value={player.happiness} />
-        </div>
+      </button>
+      <div className="flex-1 min-w-0 flex flex-col justify-center">
+        <p className="text-gray-400 text-[10px]">{player.imakano.name}</p>
+        <p className="text-white text-sm font-bold truncate">{player.name}</p>
+      </div>
+      <div className="flex flex-col items-end justify-center flex-shrink-0">
+        <span className={`text-4xl font-bold tabular-nums ${happinessColor}`}>{player.happiness}</span>
+        <span className="text-pink-500 text-xs">♥</span>
       </div>
     </div>
   );
