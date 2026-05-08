@@ -160,7 +160,7 @@ export default function GameBoard({ state, dispatch }: Props) {
   if (state.attackPlaysThisTurn >= MAX_ATTACK_PLAYS) unplayableTypes.add('attack');
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#07070e]">
+    <div className="min-h-screen flex flex-col" style={{ backgroundImage: 'url(/board-bg.png)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
 
       {/* ── North ── */}
       {northIdx >= 0 && (
@@ -191,17 +191,20 @@ export default function GameBoard({ state, dispatch }: Props) {
             </div>
           </div>
 
-          {/* Last played card */}
-          {state.lastPlayedCard ? (
-            <div className="flex flex-col items-center gap-1">
-              <p className="text-gray-600 text-[9px] tracking-wider">LAST PLAYED</p>
-              <CardComp card={state.lastPlayedCard} size="md" />
-            </div>
-          ) : (
-            <div className="w-[120px] h-[168px] rounded-xl border-2 border-dashed border-gray-800/60 flex items-center justify-center">
-              <span className="text-gray-800 text-xs">場</span>
-            </div>
-          )}
+          {/* Field center decoration + last played card */}
+          <div className="relative flex items-center justify-center">
+            <img src="/field-center.png" alt="" className="absolute w-48 h-32 object-contain opacity-40 pointer-events-none" draggable={false} />
+            {state.lastPlayedCard ? (
+              <div className="flex flex-col items-center gap-1 relative z-10">
+                <p className="text-gray-500 text-[9px] tracking-wider">LAST PLAYED</p>
+                <CardComp card={state.lastPlayedCard} size="md" />
+              </div>
+            ) : (
+              <div className="w-[120px] h-[168px] rounded-xl border-2 border-dashed border-gray-700/40 flex items-center justify-center relative z-10">
+                <span className="text-gray-700 text-xs">場</span>
+              </div>
+            )}
+          </div>
 
           {/* Trash top card (dimmed) */}
           {state.trash.length > 0 && state.lastPlayedCard?.instanceId !== state.trash[0].instanceId && (
