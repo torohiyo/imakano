@@ -2,12 +2,13 @@
 
 import { PlayerState } from '@/lib/types';
 
-// Portrait rendered as CSS background so the frame PNG's transparent center
-// correctly reveals the character image underneath
+// Frame is placed BEHIND the character so its opaque interior is hidden by the portrait.
+// Only the frame's decorative border (in the padding area) remains visible.
 function Portrait({
   imakanoId,
   width,
   height,
+  framePad,
   borderRadius = '12px',
   skillRing = false,
   attackRing = false,
@@ -16,48 +17,68 @@ function Portrait({
   imakanoId: string;
   width: number;
   height: number;
+  framePad: number;
   borderRadius?: string;
   skillRing?: boolean;
   attackRing?: boolean;
   skillLabel?: boolean;
 }) {
+  const outerW = width + framePad * 2;
+  const outerH = height + framePad * 2;
+
   return (
-    <div
-      className="relative flex-shrink-0 overflow-hidden"
-      style={{
-        width,
-        height,
-        borderRadius,
-        backgroundImage: `url('/imakano/${imakanoId}.png')`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'top center',
-        boxShadow: attackRing
-          ? '0 0 18px rgba(220,38,38,0.6)'
-          : skillRing
-          ? '0 0 20px rgba(250,200,50,0.5)'
-          : '0 4px 20px rgba(0,0,0,0.5)',
-        outline: attackRing
-          ? '2px solid rgba(220,38,38,0.8)'
-          : skillRing
-          ? '2px solid rgba(250,200,50,0.7)'
-          : 'none',
-      }}
-    >
-      {/* Frame overlay — transparent center shows character via CSS background */}
+    <div style={{ position: 'relative', flexShrink: 0, width: outerW, height: outerH }}>
+      {/* Frame behind — z-index 0 */}
       <img
         src="/icons/portrait-frame.png"
         alt=""
-        className="absolute inset-0 w-full h-full pointer-events-none"
-        style={{ objectFit: 'fill' }}
         draggable={false}
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill', zIndex: 0, pointerEvents: 'none' }}
       />
-      {/* Skill label */}
+      {/* Character in front — covers the frame's interior */}
+      <div
+        style={{
+          position: 'absolute',
+          top: framePad,
+          left: framePad,
+          width,
+          height,
+          overflow: 'hidden',
+          borderRadius,
+          zIndex: 1,
+          boxShadow: attackRing
+            ? '0 0 0 2px rgba(220,38,38,0.9), 0 0 18px rgba(220,38,38,0.6)'
+            : skillRing
+            ? '0 0 0 2px rgba(250,200,50,0.8), 0 0 20px rgba(250,200,50,0.5)'
+            : '0 4px 20px rgba(0,0,0,0.5)',
+        }}
+      >
+        <img
+          src={`/imakano/${imakanoId}.png`}
+          alt=""
+          draggable={false}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }}
+        />
+      </div>
+      {/* Skill label — above character */}
       {skillLabel && (
         <div
-          className="absolute bottom-0 inset-x-0 py-1 text-center pointer-events-none"
-          style={{ background: 'linear-gradient(to top, rgba(160,110,0,0.9), transparent)' }}
+          style={{
+            position: 'absolute',
+            bottom: framePad,
+            left: framePad,
+            right: framePad,
+            borderBottomLeftRadius: borderRadius,
+            borderBottomRightRadius: borderRadius,
+            paddingBottom: 4,
+            paddingTop: 10,
+            textAlign: 'center',
+            background: 'linear-gradient(to top, rgba(160,110,0,0.9), transparent)',
+            zIndex: 2,
+            pointerEvents: 'none',
+          }}
         >
-          <span className="text-yellow-200 text-[9px] font-bold tracking-[0.18em] uppercase">Skill</span>
+          <span style={{ color: '#fef3c7', fontSize: 9, fontWeight: 700, letterSpacing: '0.15em' }}>SKILL</span>
         </div>
       )}
     </div>
@@ -100,6 +121,7 @@ export default function PlayerPanel({
           imakanoId={imakanoId}
           width={90}
           height={112}
+          framePad={13}
           borderRadius="14px"
           attackRing={!!onAttack}
         />
@@ -158,6 +180,7 @@ export default function PlayerPanel({
             imakanoId={imakanoId}
             width={36}
             height={45}
+            framePad={5}
             borderRadius="6px"
             attackRing={!!onAttack}
           />
@@ -200,6 +223,7 @@ export default function PlayerPanel({
             imakanoId={imakanoId}
             width={120}
             height={150}
+            framePad={17}
             borderRadius="18px"
             skillRing={!!onPortraitTap}
             skillLabel={!!onPortraitTap}
