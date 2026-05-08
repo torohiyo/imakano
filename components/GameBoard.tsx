@@ -18,33 +18,14 @@ interface Props {
   onAfkWarning?: () => void;
 }
 
-// ── SVG icons (no emoji) ──
 function DeckIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" className={className}>
-      <rect x="1" y="5" width="13" height="15" rx="2" opacity="0.4" />
-      <rect x="3" y="3" width="13" height="15" rx="2" opacity="0.7" />
-      <rect x="5" y="1" width="13" height="15" rx="2" />
-    </svg>
-  );
+  return <img src="/icons/icon-deck.png" alt="" className={className} draggable={false} />;
 }
 function GraveIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" className={className}>
-      <rect x="1" y="5" width="13" height="15" rx="2" opacity="0.3" transform="rotate(-8 7 12)" />
-      <rect x="4" y="2" width="13" height="15" rx="2" opacity="0.6" transform="rotate(-3 10 10)" />
-      <rect x="5" y="1" width="13" height="15" rx="2" />
-    </svg>
-  );
+  return <img src="/icons/icon-grave.png" alt="" className={className} draggable={false} />;
 }
 function ScrollIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" className={className}>
-      <path d="M5 4h10a2 2 0 010 4H5a2 2 0 010-4z" />
-      <path d="M5 8v8a2 2 0 002 2h8" />
-      <path d="M8 12h6M8 15h4" />
-    </svg>
-  );
+  return <img src="/icons/icon-scroll.png" alt="" className={className} draggable={false} />;
 }
 
 // ── Card zoom overlay ──

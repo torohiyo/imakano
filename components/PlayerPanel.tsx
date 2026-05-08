@@ -3,11 +3,7 @@
 import { PlayerState } from '@/lib/types';
 
 function HeartIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
-      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-    </svg>
-  );
+  return <img src="/icons/icon-heart.png" alt="" className={className} draggable={false} />;
 }
 
 interface Props {
@@ -35,6 +31,7 @@ export default function PlayerPanel({ player, isCurrent = false, variant = 'full
         <div className={`relative w-[72px] h-[90px] rounded-xl overflow-hidden flex-shrink-0 shadow-lg transition-all
           ${onAttack ? 'ring-2 ring-red-500 shadow-[0_0_18px_rgba(220,38,38,0.55)]' : 'ring-1 ring-white/10'}`}>
           <img src={`/imakano/${imakanoId}.png`} alt="" className="w-full h-full object-cover object-top" draggable={false} />
+          <img src="/icons/portrait-frame.png" alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" draggable={false} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white/90 text-sm font-semibold tracking-wide truncate">{player.name}</p>
@@ -71,9 +68,10 @@ export default function PlayerPanel({ player, isCurrent = false, variant = 'full
           className="flex items-center gap-2"
           style={{ transform: `rotate(${deg}deg)`, whiteSpace: 'nowrap', pointerEvents: 'none' }}
         >
-          <div className={`w-10 h-12 rounded-lg overflow-hidden flex-shrink-0 shadow-md transition-all
+          <div className={`relative w-10 h-12 rounded-lg overflow-hidden flex-shrink-0 shadow-md transition-all
             ${onAttack ? 'ring-2 ring-red-500 shadow-[0_0_12px_rgba(220,38,38,0.5)]' : 'ring-1 ring-white/10'}`}>
             <img src={`/imakano/${imakanoId}.png`} alt="" className="w-full h-full object-cover object-top" draggable={false} />
+            <img src="/icons/portrait-frame.png" alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" draggable={false} />
           </div>
           <div className="flex flex-col gap-0.5">
             <p className="text-white/80 text-[10px] font-semibold">{player.name}</p>
@@ -101,8 +99,9 @@ export default function PlayerPanel({ player, isCurrent = false, variant = 'full
           className="relative flex-shrink-0 group"
           style={{ cursor: onPortraitTap ? 'pointer' : 'default' }}
         >
-          <div className="w-[120px] h-[150px] rounded-2xl overflow-hidden shadow-xl ring-1 ring-white/10">
+          <div className="relative w-[120px] h-[150px] rounded-2xl overflow-hidden shadow-xl ring-1 ring-white/10">
             <img src={`/imakano/${imakanoId}.png`} alt="" className="w-full h-full object-cover object-top" draggable={false} />
+            <img src="/icons/portrait-frame.png" alt="" className="absolute inset-0 w-full h-full object-fill pointer-events-none" draggable={false} />
           </div>
           {/* Skill-available ring — golden pulse */}
           {onPortraitTap && (
