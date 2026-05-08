@@ -18,45 +18,67 @@ interface Props {
   onAfkWarning?: () => void;
 }
 
-function getImakanoId(state: GameState, playerIdx: number): string {
-  return state.players[playerIdx].imakano.id;
+// ── SVG icons (no emoji) ──
+function DeckIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" className={className}>
+      <rect x="1" y="5" width="13" height="15" rx="2" opacity="0.4" />
+      <rect x="3" y="3" width="13" height="15" rx="2" opacity="0.7" />
+      <rect x="5" y="1" width="13" height="15" rx="2" />
+    </svg>
+  );
+}
+function GraveIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" className={className}>
+      <rect x="1" y="5" width="13" height="15" rx="2" opacity="0.3" transform="rotate(-8 7 12)" />
+      <rect x="4" y="2" width="13" height="15" rx="2" opacity="0.6" transform="rotate(-3 10 10)" />
+      <rect x="5" y="1" width="13" height="15" rx="2" />
+    </svg>
+  );
+}
+function ScrollIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4" className={className}>
+      <path d="M5 4h10a2 2 0 010 4H5a2 2 0 010-4z" />
+      <path d="M5 8v8a2 2 0 002 2h8" />
+      <path d="M8 12h6M8 15h4" />
+    </svg>
+  );
 }
 
-// Card zoom overlay — shown when tapping any card
-function CardZoomOverlay({
-  card,
-  actionLabel,
-  onAction,
-  onClose,
-}: {
+// ── Card zoom overlay ──
+function CardZoomOverlay({ card, actionLabel, onAction, onClose }: {
   card: CardInstance;
   actionLabel?: string;
   onAction?: () => void;
   onClose: () => void;
 }) {
   return (
-    <div
-      className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-6 gap-5"
+    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center p-6 gap-5"
+      style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
       onClick={onClose}
     >
       <div onClick={e => e.stopPropagation()}>
         <CardComp card={card} size="lg" />
       </div>
-      <div className="max-w-xs text-center" onClick={e => e.stopPropagation()}>
-        <p className="text-gray-300 text-sm leading-relaxed">{card.def.effectText}</p>
+      <div className="max-w-xs text-center px-2" onClick={e => e.stopPropagation()}>
+        <p className="text-white/70 text-sm leading-relaxed">{card.def.effectText}</p>
       </div>
       <div className="flex gap-3 w-full max-w-xs" onClick={e => e.stopPropagation()}>
         {actionLabel && onAction && (
           <button
             onClick={() => { onAction(); onClose(); }}
-            className="flex-1 py-4 bg-cyan-700 hover:bg-cyan-600 rounded-xl font-bold text-white glow-cyan"
+            className="flex-1 py-4 rounded-xl font-bold text-white tracking-wide"
+            style={{ background: 'linear-gradient(135deg, #0e7490, #0891b2)', boxShadow: '0 0 20px rgba(8,145,178,0.4)' }}
           >
             {actionLabel}
           </button>
         )}
         <button
           onClick={onClose}
-          className="flex-1 py-4 bg-gray-800 hover:bg-gray-700 rounded-xl text-gray-300"
+          className="flex-1 py-4 rounded-xl font-semibold text-white/60"
+          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}
         >
           閉じる
         </button>
@@ -65,10 +87,41 @@ function CardZoomOverlay({
   );
 }
 
+// ── Turn End button ──
+function TurnEndButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-[76px] h-[76px] rounded-full flex flex-col items-center justify-center flex-shrink-0 transition-transform active:scale-95"
+      style={{
+        background: 'radial-gradient(circle at 40% 35%, #3b82f6, #1d4ed8)',
+        boxShadow: '0 0 24px rgba(59,130,246,0.55), inset 0 1px 1px rgba(255,255,255,0.2)',
+        border: '2px solid rgba(147,197,253,0.5)',
+      }}
+    >
+      <span className="text-white text-[11px] font-bold leading-tight tracking-wider">ターン</span>
+      <span className="text-white text-[11px] font-bold leading-tight tracking-wider">終了</span>
+    </button>
+  );
+}
+
 export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd, onAfkWarning }: Props) {
   const [zoomedCard, setZoomedCard] = useState<CardInstance | null>(null);
   const [showLog, setShowLog] = useState(false);
   const [afkSecondsLeft, setAfkSecondsLeft] = useState<number | null>(null);
+
+  const n = state.players.length;
+  const cur = state.currentPlayerIndex;
+  const myPlayer = state.players[myPlayerIdx];
+  const currentPlayer = state.players[cur];
+  const isMyTurn = cur === myPlayerIdx;
+
+  // Auto-skip skill phase — skill is triggered by portrait tap during play phase
+  useEffect(() => {
+    if (state.phase === 'skill' && cur === myPlayerIdx) {
+      dispatch({ type: 'SKIP_SKILL' });
+    }
+  }, [state.phase, cur, myPlayerIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!afkWarningEnd) { setAfkSecondsLeft(null); return; }
@@ -80,12 +133,6 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
     const id = setInterval(tick, 500);
     return () => clearInterval(id);
   }, [afkWarningEnd]);
-
-  const n = state.players.length;
-  const cur = state.currentPlayerIndex;
-  const myPlayer = state.players[myPlayerIdx];
-  const currentPlayer = state.players[cur];
-  const isMyTurn = cur === myPlayerIdx;
 
   const eastIdx  = n >= 3 ? (myPlayerIdx + 1) % n : -1;
   const northIdx = n === 2 ? (myPlayerIdx + 1) % n : n >= 3 ? (myPlayerIdx + 2) % n : -1;
@@ -108,66 +155,45 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
     }
   });
 
-  // Can the zoomed card be played right now?
   const canPlayZoomed = zoomedCard !== null
-    && isMyTurn
-    && state.phase === 'play'
-    && !hasPending
+    && isMyTurn && state.phase === 'play' && !hasPending
     && !unplayableTypes.has(zoomedCard.def.type)
     && !unplayableIds.has(zoomedCard.instanceId);
 
-  // Can the zoomed defense card be used in defense reaction?
   const isDefenseZoom = zoomedCard !== null
     && isDefenseTarget
     && ['defense', 'super_defense', 'ultra_defense'].includes(zoomedCard.def.effectKey);
 
-  // Can skill be used? during skill OR play phase, portrait tap triggers it anytime
   const canUseSkill = isMyTurn
     && myPlayer.imakano.skillKey
     && !myPlayer.skillUsedThisTurn
     && (state.phase === 'skill' || state.phase === 'play')
     && !hasPending;
 
-  // ── Card zoom overlay ──
-  if (zoomedCard) {
-    let actionLabel: string | undefined;
-    let onAction: (() => void) | undefined;
-    if (canPlayZoomed) {
-      actionLabel = 'プレイ';
-      onAction = () => dispatch({ type: 'PLAY_CARD', cardInstanceId: zoomedCard.instanceId });
-    } else if (isDefenseZoom) {
-      actionLabel = '防御する';
-      onAction = () => dispatch({ type: 'DEFEND', cardInstanceId: zoomedCard.instanceId });
-    }
-    return (
-      <CardZoomOverlay
-        card={zoomedCard}
-        actionLabel={actionLabel}
-        onAction={onAction}
-        onClose={() => setZoomedCard(null)}
-      />
-    );
-  }
+  const isSelectingTarget = state.pending?.type === 'SELECT_TARGET';
 
   // ── Win screen ──
   if (state.phase === 'finished' && state.winner) {
-    const wImakanoId = getImakanoId(state, state.players.findIndex(p => p.id === state.winner!.id));
+    const wImakanoId = state.players.find(p => p.id === state.winner!.id)?.imakano.id ?? 'no_girlfriend';
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6">
-        <div className="w-36 h-44 rounded-2xl overflow-hidden border-2 border-yellow-400 shadow-[0_0_30px_rgba(255,200,50,0.5)]">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 gap-6"
+        style={{ background: 'linear-gradient(to bottom, #0a0010, #050008)' }}>
+        <div className="w-36 h-44 rounded-2xl overflow-hidden ring-2 ring-yellow-400/70"
+          style={{ boxShadow: '0 0 40px rgba(234,179,8,0.4)' }}>
           <img src={`/imakano/${wImakanoId}.png`} alt="" className="w-full h-full object-cover object-top" />
         </div>
         <div className="text-center">
-          <p className="text-yellow-400 text-sm tracking-widest mb-1">CONGRATULATIONS</p>
+          <p className="text-yellow-400/80 text-xs tracking-[0.3em] uppercase mb-2">Congratulations</p>
           <h1 className="text-4xl font-bold text-white">{state.winner.name}</h1>
-          <p className="text-gray-400 mt-2">「{state.winner.imakano.name}」との結婚 🎊</p>
+          <p className="text-white/40 mt-2 text-sm">「{state.winner.imakano.name}」との結婚</p>
         </div>
         <div className="w-full max-w-sm">
           <GameLog log={state.log} maxItems={15} />
         </div>
         <button
           onClick={() => (location.href = '/')}
-          className="w-full max-w-sm py-4 bg-yellow-600 hover:bg-yellow-500 rounded-xl font-bold text-white text-lg glow-gold"
+          className="w-full max-w-sm py-4 rounded-xl font-bold text-white tracking-wide"
+          style={{ background: 'linear-gradient(135deg, #b45309, #d97706)', boxShadow: '0 0 24px rgba(217,119,6,0.4)' }}
         >
           最初に戻る
         </button>
@@ -175,255 +201,244 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
     );
   }
 
-  // ── Defense reaction (shown only to the target player) ──
-  if (isDefenseTarget && state.pending?.type === 'DEFENSE_REACTION') {
-    const { attackerIdx, attackCard } = state.pending;
-    const defensibleCards = myPlayer.hand.filter(c =>
-      ['defense', 'super_defense', 'ultra_defense'].includes(c.def.effectKey)
+  // ── Compute overlay (defense or interaction) ──
+  let overlayContent: React.ReactNode = null;
+
+  if (zoomedCard) {
+    let actionLabel: string | undefined;
+    let onAction: (() => void) | undefined;
+    if (canPlayZoomed) { actionLabel = 'プレイ'; onAction = () => dispatch({ type: 'PLAY_CARD', cardInstanceId: zoomedCard.instanceId }); }
+    else if (isDefenseZoom) { actionLabel = '防御する'; onAction = () => dispatch({ type: 'DEFEND', cardInstanceId: zoomedCard.instanceId }); }
+    overlayContent = (
+      <CardZoomOverlay card={zoomedCard} actionLabel={actionLabel} onAction={onAction} onClose={() => setZoomedCard(null)} />
     );
-    return (
-      <div className="min-h-screen flex flex-col p-4 gap-4">
-        <div className="bg-red-950/80 border border-red-600 rounded-2xl p-4 glow-red">
-          <p className="text-red-300 text-xs font-bold tracking-wider mb-2">⚔️ UNDER ATTACK</p>
-          <div className="flex items-center gap-4">
+  } else if (isDefenseTarget && state.pending?.type === 'DEFENSE_REACTION') {
+    const { attackerIdx, attackCard } = state.pending;
+    const defensibleCards = myPlayer.hand.filter(c => ['defense', 'super_defense', 'ultra_defense'].includes(c.def.effectKey));
+    overlayContent = (
+      <div className="absolute inset-0 z-40 flex flex-col justify-end"
+        style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+        <div className="m-4 rounded-2xl p-4" style={{ background: 'rgba(5,5,15,0.97)', border: '1px solid rgba(220,38,38,0.4)', boxShadow: '0 0 30px rgba(220,38,38,0.2)' }}>
+          <p className="text-red-400/80 text-[10px] font-bold tracking-[0.2em] uppercase mb-3">Under Attack</p>
+          <div className="flex items-center gap-4 mb-4">
             <button className="flex-shrink-0" onClick={() => setZoomedCard(attackCard)}>
               <CardComp card={attackCard} size="sm" />
             </button>
             <div>
-              <p className="text-white font-bold">{state.players[attackerIdx].name}</p>
-              <p className="text-gray-400 text-sm">「{attackCard.def.name}」</p>
-              <p className="text-gray-500 text-xs mt-0.5">タップで詳細</p>
+              <p className="text-white font-semibold">{state.players[attackerIdx].name}</p>
+              <p className="text-white/40 text-sm">「{attackCard.def.name}」</p>
+              <p className="text-white/25 text-xs">タップで詳細</p>
             </div>
           </div>
+          {defensibleCards.length > 0 ? (
+            <div className="flex gap-3 overflow-x-auto pb-2 justify-start" style={{ minHeight: 96 }}>
+              {defensibleCards.map(c => (
+                <button key={c.instanceId} onClick={() => setZoomedCard(c)} className="flex-shrink-0" style={{ paddingTop: 8 }}>
+                  <CardComp card={c} size="sm" />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-white/25 text-sm text-center py-4">防御カードなし</p>
+          )}
+          <button
+            onClick={() => dispatch({ type: 'SKIP_DEFENSE' })}
+            className="w-full py-3 rounded-xl font-semibold text-white/50 mt-2 transition-colors hover:text-white/80"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+          >
+            防御しない
+          </button>
         </div>
-        <p className="text-white font-bold text-center">{myPlayer.name} — 防御しますか？</p>
-        {defensibleCards.length > 0 ? (
-          <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2 justify-center">
-            {defensibleCards.map(c => (
-              <button key={c.instanceId} onClick={() => setZoomedCard(c)} className="flex-shrink-0">
-                <CardComp card={c} size="md" />
-              </button>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center text-gray-600 text-sm py-4 border border-gray-800 rounded-xl">防御できるカードがありません</div>
-        )}
-        <button
-          onClick={() => dispatch({ type: 'SKIP_DEFENSE' })}
-          className="w-full py-4 bg-gray-900 hover:bg-gray-800 border border-gray-700 rounded-xl text-gray-300 font-bold"
-        >
-          防御しない
-        </button>
+      </div>
+    );
+  } else if (hasPending && state.pending?.type !== 'DEFENSE_REACTION' && state.pending?.type !== 'PASS_DEVICE' && state.pending?.type !== 'SELECT_TARGET') {
+    overlayContent = (
+      <div className="absolute inset-0 z-40 flex flex-col items-center justify-center p-4"
+        style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(4px)' }}>
+        <div className="w-full max-w-lg">
+          <InteractionModal state={state} dispatch={dispatch} />
+        </div>
       </div>
     );
   }
 
-  // ── Pending interactions ──
-  if (hasPending && state.pending?.type !== 'DEFENSE_REACTION' && state.pending?.type !== 'PASS_DEVICE' && state.pending?.type !== 'SELECT_TARGET') {
-    return <InteractionModal state={state} dispatch={dispatch} />;
-  }
+  const isHighlighted = (idx: number) => idx === cur;
 
-  const isSelectingTarget = state.pending?.type === 'SELECT_TARGET';
-  const isCurrentHighlighted = (idx: number) => idx === cur;
-
+  // ── Main board ──
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{ backgroundImage: 'url(/board-bg.png)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}
-    >
-      {/* ── North ── */}
-      {northIdx >= 0 && (
-        <div className={isCurrentHighlighted(northIdx) ? 'ring-1 ring-cyan-500/60' : ''}>
-          <PlayerPanel
-            player={state.players[northIdx]}
-            variant="north"
-            onAttack={isSelectingTarget ? () => dispatch({ type: 'SELECT_TARGET', targetPlayerIdx: northIdx }) : undefined}
-          />
-        </div>
-      )}
+    <div className="h-screen flex flex-col overflow-hidden relative"
+      style={{ backgroundImage: 'url(/board-bg.png)', backgroundSize: 'cover', backgroundPosition: 'center' }}>
 
-      {/* ── Middle row ── */}
-      <div className="flex-1 flex min-h-0">
+      {/* Board dims when overlay is active */}
+      <div className={`flex-1 flex flex-col min-h-0 transition-opacity duration-200 ${overlayContent ? 'opacity-50 pointer-events-none' : ''}`}>
 
-        {/* West */}
-        {westIdx >= 0 ? (
-          <div className={`${isCurrentHighlighted(westIdx) ? 'ring-1 ring-cyan-500/60' : ''} self-stretch flex`}>
+        {/* ── North ── */}
+        {northIdx >= 0 && (
+          <div className={isHighlighted(northIdx) ? 'ring-1 ring-cyan-500/30' : ''}>
             <PlayerPanel
-              player={state.players[westIdx]}
-              variant="side"
-              direction="west"
-              onAttack={isSelectingTarget ? () => dispatch({ type: 'SELECT_TARGET', targetPlayerIdx: westIdx }) : undefined}
+              player={state.players[northIdx]}
+              variant="north"
+              onAttack={isSelectingTarget ? () => dispatch({ type: 'SELECT_TARGET', targetPlayerIdx: northIdx }) : undefined}
             />
           </div>
-        ) : <div className="w-0" />}
+        )}
 
-        {/* Center field */}
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 p-3 relative">
-          {/* Deck & trash — icon + number only */}
-          <div className="absolute top-2 left-2 flex items-center gap-1.5">
-            <div className="flex items-center gap-1 bg-black/50 rounded-lg px-2 py-1">
-              <span className="text-gray-400 text-xs">🃏</span>
-              <span className="text-white text-xs font-bold">{state.deck.length}</span>
+        {/* ── Middle ── */}
+        <div className="flex-1 flex min-h-0">
+
+          {/* West */}
+          {westIdx >= 0 ? (
+            <div className={isHighlighted(westIdx) ? 'ring-1 ring-cyan-500/30' : ''}>
+              <PlayerPanel
+                player={state.players[westIdx]}
+                variant="side"
+                direction="west"
+                onAttack={isSelectingTarget ? () => dispatch({ type: 'SELECT_TARGET', targetPlayerIdx: westIdx }) : undefined}
+              />
             </div>
-            <div className="flex items-center gap-1 bg-black/50 rounded-lg px-2 py-1">
-              <span className="text-gray-400 text-xs">🗑</span>
-              <span className="text-white text-xs font-bold">{state.trash.length}</span>
+          ) : <div className="w-0" />}
+
+          {/* Center field */}
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 relative">
+
+            {/* Deck / trash counts */}
+            <div className="absolute top-2 left-2 flex gap-1.5">
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <DeckIcon className="w-4 h-4 text-white/50" />
+                <span className="text-white text-xs font-bold tabular-nums">{state.deck.length}</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl"
+                style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                <GraveIcon className="w-4 h-4 text-white/50" />
+                <span className="text-white text-xs font-bold tabular-nums">{state.trash.length}</span>
+              </div>
             </div>
-          </div>
 
-          {/* Log toggle */}
-          <button
-            onClick={() => setShowLog(v => !v)}
-            className="absolute top-2 right-2 w-8 h-8 bg-black/50 rounded-lg flex items-center justify-center text-gray-400 hover:text-white text-sm"
-          >
-            📋
-          </button>
+            {/* Log toggle */}
+            <button
+              onClick={() => setShowLog(v => !v)}
+              className="absolute top-2 right-2 w-8 h-8 rounded-xl flex items-center justify-center transition-colors"
+              style={{ background: 'rgba(0,0,0,0.55)', border: '1px solid rgba(255,255,255,0.07)' }}
+            >
+              <ScrollIcon className="w-4 h-4 text-white/50" />
+            </button>
 
-          {/* Field decoration + last played card */}
-          <div className="relative flex items-center justify-center">
-            <img src="/field-center.png" alt="" className="absolute w-48 h-32 object-contain opacity-40 pointer-events-none" draggable={false} />
-            {state.lastPlayedCard ? (
-              <button
-                className="relative z-10"
-                onClick={() => setZoomedCard(state.lastPlayedCard!)}
-              >
-                <CardComp card={state.lastPlayedCard} size="md" />
-              </button>
-            ) : (
-              <div className="w-[120px] h-[168px] rounded-xl border-2 border-dashed border-gray-700/40 flex items-center justify-center relative z-10">
-                <span className="text-gray-700 text-xs">場</span>
+            {/* Field decoration + last played card */}
+            <div className="relative flex items-center justify-center">
+              <img src="/field-center.png" alt="" className="absolute w-48 h-32 object-contain opacity-30 pointer-events-none" draggable={false} />
+              {state.lastPlayedCard ? (
+                <button className="relative z-10" onClick={() => setZoomedCard(state.lastPlayedCard!)}>
+                  <CardComp card={state.lastPlayedCard} size="md" />
+                </button>
+              ) : (
+                <div className="relative z-10 rounded-xl flex items-center justify-center"
+                  style={{ width: 120, height: 168, border: '2px dashed rgba(255,255,255,0.1)' }} />
+              )}
+            </div>
+
+            {/* SELECT_TARGET prompt */}
+            {isSelectingTarget && (
+              <div className="px-5 py-2 rounded-xl"
+                style={{ background: 'rgba(127,29,29,0.7)', border: '1px solid rgba(220,38,38,0.4)' }}>
+                <p className="text-red-300 text-xs font-bold tracking-wider">攻撃対象を選択</p>
+              </div>
+            )}
+
+            {/* Waiting states */}
+            {(state.phase === 'draw' || state.phase === 'end_turn' || state.phase === 'resolve') && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <p className="text-white/30 animate-pulse text-sm tracking-wider">処理中</p>
+              </div>
+            )}
+            {state.phase === 'defense' && !isDefenseTarget && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                <div className="px-6 py-4 rounded-2xl text-center"
+                  style={{ background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(220,38,38,0.3)' }}>
+                  <p className="text-red-400 text-sm font-bold tracking-wide">攻撃中</p>
+                  <p className="text-white/30 text-xs mt-1 animate-pulse">
+                    {state.players[state.pending?.type === 'DEFENSE_REACTION' ? state.pending.targetIdx : cur]?.name} が応答中
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Log panel */}
+            {showLog && (
+              <div className="absolute inset-x-2 top-12 z-30">
+                <GameLog log={state.log} maxItems={8} />
               </div>
             )}
           </div>
 
-          {/* SELECT_TARGET prompt */}
-          {isSelectingTarget && (
-            <div className="bg-red-950/80 border border-red-700 rounded-xl px-4 py-2 text-center">
-              <p className="text-red-300 text-xs font-bold">⚔️ 攻撃対象を選択</p>
+          {/* East */}
+          {eastIdx >= 0 ? (
+            <div className={isHighlighted(eastIdx) ? 'ring-1 ring-cyan-500/30' : ''}>
+              <PlayerPanel
+                player={state.players[eastIdx]}
+                variant="side"
+                direction="east"
+                onAttack={isSelectingTarget ? () => dispatch({ type: 'SELECT_TARGET', targetPlayerIdx: eastIdx }) : undefined}
+              />
             </div>
-          )}
-
-          {/* Waiting overlay */}
-          {(state.phase === 'draw' || state.phase === 'end_turn' || state.phase === 'resolve') && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-              <p className="text-gray-400 animate-pulse text-sm">処理中...</p>
-            </div>
-          )}
-          {state.phase === 'defense' && !isDefenseTarget && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-              <div className="bg-gray-900/90 border border-red-800/60 rounded-2xl px-6 py-4 text-center">
-                <p className="text-red-400 text-sm font-bold">⚔️ 攻撃中</p>
-                <p className="text-gray-400 text-xs mt-1 animate-pulse">
-                  {state.players[state.pending?.type === 'DEFENSE_REACTION' ? state.pending.targetIdx : cur]?.name ?? ''} が応答中...
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Inline log panel */}
-          {showLog && (
-            <div className="absolute inset-x-2 top-12 z-40">
-              <GameLog log={state.log} maxItems={8} />
-            </div>
-          )}
+          ) : <div className="w-0" />}
         </div>
 
-        {/* East */}
-        {eastIdx >= 0 ? (
-          <div className={`${isCurrentHighlighted(eastIdx) ? 'ring-1 ring-cyan-500/60' : ''} self-stretch flex`}>
-            <PlayerPanel
-              player={state.players[eastIdx]}
-              variant="side"
-              direction="east"
-              onAttack={isSelectingTarget ? () => dispatch({ type: 'SELECT_TARGET', targetPlayerIdx: eastIdx }) : undefined}
-            />
-          </div>
-        ) : <div className="w-0" />}
-      </div>
-
-      {/* ── South: me ── */}
-      <div className={`border-t ${isCurrentHighlighted(myPlayerIdx) ? 'border-cyan-500/60' : 'border-gray-800/80'}`}>
-        <PlayerPanel
-          player={myPlayer}
-          isCurrent={isMyTurn}
-          variant="full"
-          onPortraitTap={canUseSkill ? () => dispatch({ type: 'USE_SKILL' }) : undefined}
-        />
-
-        <div className="px-4 pt-2 pb-4">
-
-          {/* Skill phase buttons */}
-          {isMyTurn && state.phase === 'skill' && (
-            <div className="flex gap-2 mb-2">
-              {myPlayer.imakano.skillKey && !myPlayer.skillUsedThisTurn ? (
-                <button
-                  onClick={() => dispatch({ type: 'USE_SKILL' })}
-                  className="flex-1 py-3 bg-yellow-700 hover:bg-yellow-600 rounded-xl font-bold text-white text-sm glow-gold"
-                >
-                  ✨ {myPlayer.imakano.skillName}
-                </button>
-              ) : (
-                <div className="flex-1 text-center text-gray-700 text-sm py-3 border border-gray-800 rounded-xl">
-                  {myPlayer.imakano.skillKey ? 'スキル使用済み' : 'スキルなし'}
-                </div>
-              )}
-              <button
-                onClick={() => dispatch({ type: 'SKIP_SKILL' })}
-                className="flex-1 py-3 bg-gray-900/60 hover:bg-gray-800 border border-gray-800 rounded-xl text-gray-500 text-sm"
-              >
-                スキップ
-              </button>
-            </div>
-          )}
+        {/* ── South: me ── */}
+        <div className={`border-t ${isHighlighted(myPlayerIdx) ? 'border-cyan-700/40' : 'border-white/5'}`}>
+          <PlayerPanel
+            player={myPlayer}
+            isCurrent={isMyTurn}
+            variant="full"
+            onPortraitTap={canUseSkill ? () => dispatch({ type: 'USE_SKILL' }) : undefined}
+          />
 
           {/* Play phase */}
           {isMyTurn && state.phase === 'play' && !hasPending && (
-            <div className="flex items-end gap-3">
+            <div className="flex items-end gap-3 px-4 pt-1 pb-4">
               <div className="flex-1">
-                <HandView
-                  cards={myPlayer.hand}
-                  onTap={setZoomedCard}
-                  unplayableTypes={unplayableTypes}
-                  unplayableIds={unplayableIds}
-                />
+                <HandView cards={myPlayer.hand} onTap={setZoomedCard} unplayableTypes={unplayableTypes} unplayableIds={unplayableIds} />
               </div>
-              <button
-                onClick={() => dispatch({ type: 'SKIP_PLAY' })}
-                className="w-20 h-20 rounded-full bg-blue-700 hover:bg-blue-600 border-2 border-blue-400 shadow-[0_0_20px_rgba(60,130,255,0.6)] flex-shrink-0 flex flex-col items-center justify-center mb-2"
-              >
-                <span className="text-white text-xs font-bold leading-tight">ターン</span>
-                <span className="text-white text-xs font-bold leading-tight">終了</span>
-              </button>
+              <div className="pb-2">
+                <TurnEndButton onClick={() => dispatch({ type: 'SKIP_PLAY' })} />
+              </div>
             </div>
           )}
 
-          {/* Not my turn — hand visible for reading only */}
+          {/* Not my turn */}
           {!isMyTurn && (
-            <div className="flex items-end gap-3">
+            <div className="flex items-end gap-3 px-4 pt-1 pb-4">
               <div className="flex-1">
-                <HandView
-                  cards={myPlayer.hand}
-                  onTap={setZoomedCard}
-                  unplayableTypes={new Set(['attack', 'defense', 'special'])}
-                />
+                <HandView cards={myPlayer.hand} onTap={setZoomedCard} unplayableTypes={new Set(['attack', 'defense', 'special'])} />
               </div>
-              <div className="flex flex-col items-end gap-1 mb-2 flex-shrink-0">
+              <div className="flex flex-col items-end gap-2 pb-2 flex-shrink-0">
                 {afkSecondsLeft !== null ? (
                   <span className="text-red-400 text-xs font-bold animate-pulse">失格まで {afkSecondsLeft}秒</span>
                 ) : (
                   <button
                     onClick={onAfkWarning}
-                    className="text-[10px] px-2 py-1 bg-gray-900 hover:bg-red-950 border border-gray-700 hover:border-red-700 rounded-lg text-gray-500 hover:text-red-400 transition-all"
+                    className="text-[11px] px-3 py-1.5 rounded-lg text-white/30 hover:text-red-400 transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
                   >
                     離席警告
                   </button>
                 )}
-                <p className="text-gray-700 text-[10px] animate-pulse text-right">{currentPlayer.name}のターン</p>
+                <p className="text-white/25 text-[10px] animate-pulse">{currentPlayer.name}のターン</p>
               </div>
+            </div>
+          )}
+
+          {/* Skill phase (brief, auto-skips — just show nothing) */}
+          {isMyTurn && state.phase === 'skill' && (
+            <div className="px-4 pb-4">
+              <HandView cards={myPlayer.hand} onTap={setZoomedCard} unplayableTypes={new Set(['attack', 'defense', 'special'])} />
             </div>
           )}
         </div>
       </div>
+
+      {/* ── Overlay ── */}
+      {overlayContent}
     </div>
   );
 }
