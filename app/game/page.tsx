@@ -12,7 +12,7 @@ const PARTYKIT_HOST = process.env.NEXT_PUBLIC_PARTYKIT_HOST || 'localhost:1999';
 
 type SyncMsg =
   | { type: 'SYNC'; phase: 'lobby'; players: { name: string; isHost: boolean; online: boolean }[]; isHost: boolean }
-  | { type: 'SYNC'; phase: 'playing'; game: GameState; yourPlayerIdx: number };
+  | { type: 'SYNC'; phase: 'playing'; game: GameState; yourPlayerIdx: number; afkWarningEnd: number | null };
 
 function GameInner() {
   const params = useSearchParams();
@@ -42,6 +42,10 @@ function GameInner() {
     socket.send(JSON.stringify({ type: 'START_GAME', playerId }));
   }, [socket, playerId]);
 
+  const sendAfkWarning = useCallback(() => {
+    socket.send(JSON.stringify({ type: 'AFK_WARNING', playerId }));
+  }, [socket, playerId]);
+
   if (!sync) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
@@ -67,6 +71,8 @@ function GameInner() {
       state={sync.game}
       dispatch={dispatch}
       myPlayerIdx={sync.yourPlayerIdx}
+      afkWarningEnd={sync.afkWarningEnd}
+      onAfkWarning={sendAfkWarning}
     />
   );
 }

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GameState } from '@/lib/types';
 import { GameAction } from '@/lib/gameEngine';
-import { MAX_SPECIAL_PLAYS, MAX_ATTACK_PLAYS } from '@/lib/constants';
+import { MAX_SPECIAL_PLAYS, MAX_ATTACK_PLAYS, MARRIAGE_VICTORY_THRESHOLD } from '@/lib/constants';
 import PlayerPanel from './PlayerPanel';
 import HandView from './HandView';
 import CardComp from './CardComp';
@@ -14,6 +14,8 @@ interface Props {
   state: GameState;
   dispatch: (action: GameAction) => void;
   myPlayerIdx: number;
+  afkWarningEnd?: number | null;
+  onAfkWarning?: () => void;
 }
 
 function getImakanoId(state: GameState, playerIdx: number): string {
@@ -21,8 +23,20 @@ function getImakanoId(state: GameState, playerIdx: number): string {
   return p.imakano.isRental ? 'rental' : p.imakano.id;
 }
 
-export default function GameBoard({ state, dispatch, myPlayerIdx }: Props) {
+export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd, onAfkWarning }: Props) {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const [afkSecondsLeft, setAfkSecondsLeft] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!afkWarningEnd) { setAfkSecondsLeft(null); return; }
+    const tick = () => {
+      const left = Math.ceil((afkWarningEnd - Date.now()) / 1000);
+      setAfkSecondsLeft(left > 0 ? left : 0);
+    };
+    tick();
+    const id = setInterval(tick, 500);
+    return () => clearInterval(id);
+  }, [afkWarningEnd]);
 
   const n = state.players.length;
   const cur = state.currentPlayerIndex;
@@ -118,7 +132,15 @@ export default function GameBoard({ state, dispatch, myPlayerIdx }: Props) {
   // ── Main board (mahjong layout) ──
   const unplayableTypes = new Set<string>(['defense']);
   if (state.specialPlaysThisTurn >= MAX_SPECIAL_PLAYS) unplayableTypes.add('special');
-  if (state.attackPlaysThisTurn >= MAX_ATTACK_PLAYS) unplayableTypes.add('attack');
+  if (state.attackPlaysThisTurn >= MAX_ATTACK_PLAYS || state.turnNumber === 1) unplayableTypes.add('attack');
+
+  // 婚姻届は幸せゲージ不足時にグレーアウト
+  const unplayableIds = new Set<string>();
+  myPlayer.hand.forEach(c => {
+    if (c.def.effectKey === 'marriage' && myPlayer.happiness < MARRIAGE_VICTORY_THRESHOLD) {
+      unplayableIds.add(c.instanceId);
+    }
+  });
 
   const isCurrentHighlighted = (idx: number) => idx === cur;
 
@@ -259,6 +281,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx }: Props) {
                 selectedId={selectedCardId}
                 onSelect={setSelectedCardId}
                 unplayableTypes={unplayableTypes}
+                unplayableIds={unplayableIds}
               />
               <div className="flex gap-2 items-center">
                 <button
@@ -293,9 +316,23 @@ export default function GameBoard({ state, dispatch, myPlayerIdx }: Props) {
                 onSelect={() => {}}
                 unplayableTypes={new Set(['attack', 'defense', 'special'])}
               />
-              <p className="text-center text-gray-600 text-xs py-1 animate-pulse">
-                {currentPlayer.name} のターンを待っています...
-              </p>
+              <div className="flex items-center gap-2 py-1">
+                <p className="flex-1 text-gray-600 text-xs animate-pulse">
+                  {currentPlayer.name} のターンを待っています...
+                </p>
+                {afkSecondsLeft !== null ? (
+                  <span className="text-red-400 text-xs font-bold animate-pulse">
+                    失格まで {afkSecondsLeft}秒
+                  </span>
+                ) : (
+                  <button
+                    onClick={onAfkWarning}
+                    className="text-[10px] px-2 py-1 bg-gray-900 hover:bg-red-950 border border-gray-700 hover:border-red-700 rounded-lg text-gray-500 hover:text-red-400 transition-all flex-shrink-0"
+                  >
+                    離席警告
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>

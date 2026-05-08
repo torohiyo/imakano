@@ -200,21 +200,29 @@ function DiscardModal({ state, dispatch }: Props) {
     });
   };
 
+  const required = Math.min(count, player.hand.length);
+
   return (
     <ModalShell title={`手札を${count}枚捨てる`} subtitle={`${player.name} — ${cause}`}>
-      <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-4 justify-center" style={{ minHeight: 120 }}>
-        {player.hand.map(card => (
-          <button key={card.instanceId} onClick={() => toggle(card.instanceId)} className="flex-shrink-0" style={{ paddingTop: 12 }}>
-            <CardComp card={card} selected={selected.has(card.instanceId)} size="sm" />
-          </button>
-        ))}
-      </div>
+      {player.hand.length === 0 ? (
+        <div className="text-center text-gray-600 text-sm py-6 border border-gray-800 rounded-xl mb-4">
+          手札がありません
+        </div>
+      ) : (
+        <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-4 justify-center" style={{ minHeight: 120 }}>
+          {player.hand.map(card => (
+            <button key={card.instanceId} onClick={() => toggle(card.instanceId)} className="flex-shrink-0" style={{ paddingTop: 12 }}>
+              <CardComp card={card} selected={selected.has(card.instanceId)} size="sm" />
+            </button>
+          ))}
+        </div>
+      )}
       <button
         onClick={() => dispatch({ type: 'RESOLVE_DISCARD', discardedIds: [...selected] })}
-        disabled={selected.size !== count}
+        disabled={selected.size !== required}
         className="w-full mt-4 py-4 bg-red-800 hover:bg-red-700 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl font-bold text-white glow-red"
       >
-        {selected.size}/{count}枚トラッシュ
+        {player.hand.length === 0 ? 'スキップ（手札なし）' : `${selected.size}/${required}枚トラッシュ`}
       </button>
     </ModalShell>
   );

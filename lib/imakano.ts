@@ -33,22 +33,4 @@ export const IMAKANO_DEFS: ImakanoDef[] = [
     skillKey: 'skill_jirai',
     skillText: '右隣のプレイヤーの幸せゲージが自分より低ければ幸せゲージ +2',
   },
-  {
-    id: 'no_girlfriend',
-    name: '彼女いない',
-    initialHappiness: 0,
-    skillName: null,
-    skillKey: null,
-    skillText: null,
-  },
 ];
-
-export const RENTAL_IMAKANO: ImakanoDef = {
-  id: 'rental',
-  name: 'レンタルイマカノ',
-  initialHappiness: 2,
-  skillName: null,
-  skillKey: null,
-  skillText: null,
-  isRental: true,
-};

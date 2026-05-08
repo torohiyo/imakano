@@ -1,5 +1,5 @@
 import { GameState, PlayerState, CardInstance, GameLog, Pending } from './types';
-import { IMAKANO_DEFS, RENTAL_IMAKANO } from './imakano';
+import { IMAKANO_DEFS } from './imakano';
 import { buildDeck, shuffle } from './cards';
 import {
   HAPPINESS_MAX, HAPPINESS_MIN, INITIAL_HAND_SIZE,
@@ -26,7 +26,8 @@ export type GameAction =
   | { type: 'RESOLVE_PEEK_TRASH'; trashedId: string | null }
   | { type: 'RESOLVE_UTSU_NOVEL'; returnToHand: boolean }
   | { type: 'SKIP_PLAY' }
-  | { type: 'END_TURN' };
+  | { type: 'END_TURN' }
+  | { type: 'AFK_ELIMINATE' };
 
 // ===== Helpers =====
 
@@ -101,25 +102,20 @@ function nextPhase(state: GameState): GameState['phase'] {
 export function startGame(playerNames: string[]): GameState {
   const n = playerNames.length;
 
-  const imakanoPool = shuffle([...IMAKANO_DEFS]).slice(0, n + 1);
-  const dealt = imakanoPool.slice(0, n);
+  const imakanoPool = shuffle([...IMAKANO_DEFS]).slice(0, n);
 
   const fullDeck = buildDeck();
 
-  const players: PlayerState[] = dealt.map((imakano, i) => {
-    const isNoGf = imakano.id === 'no_girlfriend';
-    const actualImakano = isNoGf ? RENTAL_IMAKANO : imakano;
-    return {
-      id: `player-${i}`,
-      name: playerNames[i],
-      imakano: actualImakano,
-      happiness: actualImakano.initialHappiness,
-      hand: [],
-      skillUsedThisTurn: false,
-      isWinner: false,
-      isDefeated: false,
-    };
-  });
+  const players: PlayerState[] = imakanoPool.map((imakano, i) => ({
+    id: `player-${i}`,
+    name: playerNames[i],
+    imakano,
+    happiness: imakano.initialHappiness,
+    hand: [],
+    skillUsedThisTurn: false,
+    isWinner: false,
+    isDefeated: false,
+  }));
 
   let deck = fullDeck;
   let trash: CardInstance[] = [];
@@ -129,9 +125,7 @@ export function startGame(playerNames: string[]): GameState {
     return { ...p, hand: drawn };
   });
 
-  const rentalIdx = playersWithHands.findIndex(p => p.imakano.isRental);
-  const firstIdx = rentalIdx >= 0 ? rentalIdx : Math.floor(Math.random() * n);
-  const noGfPlayer = playersWithHands.find(p => p.imakano.isRental);
+  const firstIdx = Math.floor(Math.random() * n);
 
   const initialLog: GameLog[] = [];
   let logSeq = 0;
@@ -142,12 +136,7 @@ export function startGame(playerNames: string[]): GameState {
   playersWithHands.forEach(p => {
     addL(`${p.name} は「${p.imakano.name}」を引きました`, 'info');
   });
-  if (noGfPlayer) {
-    addL(`【${noGfPlayer.name}】「彼女いないです」`, 'system');
-    addL(`${noGfPlayer.name} はレンタルイマカノを受け取り、先攻になりました`, 'system');
-  } else {
-    addL(`先攻: ${playersWithHands[firstIdx].name}（ランダム決定）`, 'system');
-  }
+  addL(`先攻: ${playersWithHands[firstIdx].name}（ランダム決定）`, 'system');
 
   return {
     phase: 'pass_device',
@@ -267,6 +256,8 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
 
       // 防御札は反応フェーズ専用。プレイフェーズでは使えない
       if (card.def.type === 'defense') return state;
+      // 先攻1ターン目は攻撃不可
+      if (card.def.type === 'attack' && state.turnNumber === 1) return state;
       // プレイ回数チェック
       if (card.def.type === 'attack' && state.attackPlaysThisTurn >= MAX_ATTACK_PLAYS) return state;
       if (card.def.type === 'special' && state.specialPlaysThisTurn >= MAX_SPECIAL_PLAYS) return state;
@@ -594,6 +585,22 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return passDevice(s, nextIdx, `${nextPlayer.name} さんのターンです`);
     }
 
+    // ===== 離席失格 =====
+    case 'AFK_ELIMINATE': {
+      const cur = state.currentPlayerIndex;
+      const players = state.players.map((p, i) => i === cur ? { ...p, isDefeated: true } : p);
+      let s: GameState = addLog({ ...state, players }, `${state.players[cur].name} が離席により失格`, 'system');
+      const active = players.filter(p => !p.isDefeated);
+      if (active.length <= 1) {
+        return endGame(s, active[0] ?? players[0]);
+      }
+      const n = players.length;
+      let nextIdx = (cur + 1) % n;
+      while (players[nextIdx].isDefeated) nextIdx = (nextIdx + 1) % n;
+      s = { ...s, currentPlayerIndex: nextIdx, specialPlaysThisTurn: 0, attackPlaysThisTurn: 0, pendingCard: null, pendingTargetIdx: null, pending: null, turnNumber: state.turnNumber + 1 };
+      return passDevice(s, nextIdx, `${players[nextIdx].name} のターンです`);
+    }
+
     default:
       return state;
   }
@@ -631,11 +638,8 @@ function trashCard(state: GameState, card: CardInstance, _playerIdx: number): Ga
   return { ...state, trash: [card, ...state.trash] };
 }
 
-function canDefend(defKey: string, attackKey: string): boolean {
-  if (defKey === 'defense') return attackKey === 'attack';
-  if (defKey === 'super_defense') return ['attack', 'super_attack', 'spy', 'sister', 'bestfriend', 'father', 'letter', 'utsu_novel', 'ring', 'house', 'pet', 'disney', 'marriage'].includes(attackKey);
-  if (defKey === 'ultra_defense') return ['attack', 'super_attack', 'ultra_attack'].includes(attackKey);
-  return false;
+function canDefend(defKey: string, _attackKey: string): boolean {
+  return ['defense', 'super_defense', 'ultra_defense'].includes(defKey);
 }
 
 function endGameByHappiness(state: GameState): GameState {

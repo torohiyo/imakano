@@ -9,9 +9,10 @@ interface Props {
   onSelect: (id: string | null) => void;
   disabled?: boolean;
   unplayableTypes?: Set<string>;
+  unplayableIds?: Set<string>;
 }
 
-export default function HandView({ cards, selectedId, onSelect, disabled = false, unplayableTypes }: Props) {
+export default function HandView({ cards, selectedId, onSelect, disabled = false, unplayableTypes, unplayableIds }: Props) {
   if (cards.length === 0) {
     return (
       <div className="text-center text-gray-700 py-6 text-sm border border-gray-800 rounded-xl">
@@ -27,7 +28,7 @@ export default function HandView({ cards, selectedId, onSelect, disabled = false
       </p>
       <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-4 justify-start px-2" style={{ minHeight: 112 }}>
         {cards.map(card => {
-          const isUnplayable = disabled || (unplayableTypes?.has(card.def.type) ?? false);
+          const isUnplayable = disabled || (unplayableTypes?.has(card.def.type) ?? false) || (unplayableIds?.has(card.instanceId) ?? false);
           return (
             <button
               key={card.instanceId}

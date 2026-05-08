@@ -92,6 +92,8 @@ function isActionAllowed(game: GameState, action: GameAction, playerIdx: number)
 export default class GameRoom implements Party.Server {
   private roomState: RoomState | null = null;
   private autoTimer: ReturnType<typeof setTimeout> | null = null;
+  private afkTimer: ReturnType<typeof setTimeout> | null = null;
+  private afkWarningEnd: number | null = null;
 
   constructor(readonly room: Party.Room) {}
 
@@ -103,7 +105,8 @@ export default class GameRoom implements Party.Server {
     const msg = JSON.parse(message) as
       | { type: "JOIN"; playerId: string; name: string }
       | { type: "START_GAME"; playerId: string }
-      | { type: "ACTION"; playerId: string; action: GameAction };
+      | { type: "ACTION"; playerId: string; action: GameAction }
+      | { type: "AFK_WARNING"; playerId: string };
 
     switch (msg.type) {
       case "JOIN": {
@@ -140,10 +143,32 @@ export default class GameRoom implements Party.Server {
         if (!this.roomState || this.roomState.phase !== "playing") break;
         const playerIdx = this.roomState.players.findIndex(p => p.playerId === msg.playerId);
         if (!isActionAllowed(this.roomState.game, msg.action, playerIdx)) break;
+        // Cancel AFK timer on valid action
+        if (this.afkTimer) { clearTimeout(this.afkTimer); this.afkTimer = null; this.afkWarningEnd = null; }
         const newGame = gameReducer(this.roomState.game, msg.action);
         this.roomState = { ...this.roomState, game: newGame };
         this.broadcastState();
         this.scheduleAutoPhase();
+        break;
+      }
+
+      case "AFK_WARNING": {
+        if (!this.roomState || this.roomState.phase !== "playing") break;
+        const warnerIdx = this.roomState.players.findIndex(p => p.playerId === msg.playerId);
+        if (warnerIdx === this.roomState.game.currentPlayerIndex) break; // can't warn yourself
+        if (this.afkTimer) break; // already active
+        this.afkWarningEnd = Date.now() + 10000;
+        this.broadcastState();
+        this.afkTimer = setTimeout(() => {
+          if (this.roomState?.phase === "playing") {
+            const newGame = gameReducer(this.roomState.game, { type: "AFK_ELIMINATE" });
+            this.roomState = { ...this.roomState, game: newGame };
+            this.afkTimer = null;
+            this.afkWarningEnd = null;
+            this.broadcastState();
+            this.scheduleAutoPhase();
+          }
+        }, 10000);
         break;
       }
     }
@@ -214,6 +239,7 @@ export default class GameRoom implements Party.Server {
           phase: "playing",
           game: filterGameForPlayer(rs.game, playerIdx),
           yourPlayerIdx: playerIdx,
+          afkWarningEnd: this.afkWarningEnd,
         }));
       }
     }
