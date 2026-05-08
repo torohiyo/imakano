@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { GameState } from '@/lib/types';
 import { GameAction } from '@/lib/gameEngine';
 import { MAX_SPECIAL_PLAYS, MAX_ATTACK_PLAYS } from '@/lib/constants';
-import PassDeviceModal from './PassDeviceModal';
 import PlayerPanel from './PlayerPanel';
 import HandView from './HandView';
 import CardComp from './CardComp';
@@ -14,6 +13,7 @@ import GameLog from './GameLog';
 interface Props {
   state: GameState;
   dispatch: (action: GameAction) => void;
+  myPlayerIdx: number;
 }
 
 function getImakanoId(state: GameState, playerIdx: number): string {
@@ -21,38 +21,26 @@ function getImakanoId(state: GameState, playerIdx: number): string {
   return p.imakano.isRental ? 'rental' : p.imakano.id;
 }
 
-export default function GameBoard({ state, dispatch }: Props) {
-  const [defensePassConfirmed, setDefensePassConfirmed] = useState(false);
+export default function GameBoard({ state, dispatch, myPlayerIdx }: Props) {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
-  const cur = state.currentPlayerIndex;
-  const currentPlayer = state.players[cur];
   const n = state.players.length;
+  const cur = state.currentPlayerIndex;
+  const myPlayer = state.players[myPlayerIdx];
+  const currentPlayer = state.players[cur];
+  const isMyTurn = cur === myPlayerIdx;
 
-  // Player position assignments (mahjong-style, clockwise from South)
-  const eastIdx  = n >= 3 ? (cur + 1) % n : -1;
-  const northIdx = n >= 2 ? (cur + (n === 2 ? 1 : 2)) % n : -1;
-  const westIdx  = n >= 4 ? (cur + 3) % n : -1;
+  // Mahjong positions from my perspective (I am always South)
+  const eastIdx  = n >= 3 ? (myPlayerIdx + 1) % n : -1;
+  const northIdx = n === 2 ? (myPlayerIdx + 1) % n : n >= 3 ? (myPlayerIdx + 2) % n : -1;
+  const westIdx  = n >= 4 ? (myPlayerIdx + 3) % n : -1;
 
-  useEffect(() => {
-    if (state.phase !== 'defense') setDefensePassConfirmed(false);
-  }, [state.phase]);
-
-  useEffect(() => { setSelectedCardId(null); }, [state.phase]);
-
-  useEffect(() => {
-    if (state.phase === 'draw') {
-      const t = setTimeout(() => dispatch({ type: 'DRAW_PHASE_DONE' }), 600);
-      return () => clearTimeout(t);
-    }
-  }, [state.phase, dispatch]);
-
-  useEffect(() => {
-    if (state.phase === 'end_turn') {
-      const t = setTimeout(() => dispatch({ type: 'END_TURN' }), 700);
-      return () => clearTimeout(t);
-    }
-  }, [state.phase, dispatch]);
+  // Is there a pending interaction meant for me?
+  const hasPending = state.pending !== null;
+  const isDefenseTarget =
+    state.phase === 'defense' &&
+    state.pending?.type === 'DEFENSE_REACTION' &&
+    state.pending.targetIdx === myPlayerIdx;
 
   // ── Win screen ──
   if (state.phase === 'finished' && state.winner) {
@@ -80,37 +68,10 @@ export default function GameBoard({ state, dispatch }: Props) {
     );
   }
 
-  // ── Pass device (turn start) ──
-  if (state.phase === 'pass_device' && state.pending?.type === 'PASS_DEVICE') {
-    const { toPlayerIdx, reason } = state.pending;
-    return (
-      <PassDeviceModal
-        playerName={state.players[toPlayerIdx].name}
-        imakanoId={getImakanoId(state, toPlayerIdx)}
-        reason={reason}
-        onConfirm={() => dispatch({ type: 'CONFIRM_DEVICE_PASSED' })}
-      />
-    );
-  }
-
-  // ── Pass device to defender ──
-  if (state.phase === 'defense' && state.pending?.type === 'DEFENSE_REACTION' && !defensePassConfirmed) {
-    const { targetIdx, attackerIdx } = state.pending;
-    return (
-      <PassDeviceModal
-        playerName={state.players[targetIdx].name}
-        imakanoId={getImakanoId(state, targetIdx)}
-        reason={`${state.players[attackerIdx].name} から攻撃されました！`}
-        onConfirm={() => setDefensePassConfirmed(true)}
-      />
-    );
-  }
-
-  // ── Defense reaction ──
-  if (state.phase === 'defense' && state.pending?.type === 'DEFENSE_REACTION' && defensePassConfirmed) {
-    const { targetIdx, attackerIdx, attackCard } = state.pending;
-    const target = state.players[targetIdx];
-    const defensibleCards = target.hand.filter(c =>
+  // ── Defense reaction (shown only to the target player) ──
+  if (isDefenseTarget && state.pending?.type === 'DEFENSE_REACTION') {
+    const { attackerIdx, attackCard } = state.pending;
+    const defensibleCards = myPlayer.hand.filter(c =>
       ['defense', 'super_defense', 'ultra_defense'].includes(c.def.effectKey)
     );
     return (
@@ -126,7 +87,7 @@ export default function GameBoard({ state, dispatch }: Props) {
             </div>
           </div>
         </div>
-        <p className="text-white font-bold text-center">{target.name} — 防御しますか？</p>
+        <p className="text-white font-bold text-center">{myPlayer.name} — 防御しますか？</p>
         {defensibleCards.length > 0 ? (
           <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-2 justify-center">
             {defensibleCards.map(c => (
@@ -149,49 +110,55 @@ export default function GameBoard({ state, dispatch }: Props) {
     );
   }
 
-  // ── Pending interactions ──
-  if (state.pending && state.pending.type !== 'DEFENSE_REACTION' && state.pending.type !== 'PASS_DEVICE') {
+  // ── Pending interactions (for current player or discard target) ──
+  if (hasPending && state.pending?.type !== 'DEFENSE_REACTION' && state.pending?.type !== 'PASS_DEVICE') {
     return <InteractionModal state={state} dispatch={dispatch} />;
   }
 
-  // ── Main game board (mahjong layout) ──
+  // ── Main board (mahjong layout) ──
   const unplayableTypes = new Set<string>(['defense']);
   if (state.specialPlaysThisTurn >= MAX_SPECIAL_PLAYS) unplayableTypes.add('special');
   if (state.attackPlaysThisTurn >= MAX_ATTACK_PLAYS) unplayableTypes.add('attack');
 
-  return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundImage: 'url(/board-bg.png)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
+  const isCurrentHighlighted = (idx: number) => idx === cur;
 
+  return (
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ backgroundImage: 'url(/board-bg.png)', backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}
+    >
       {/* ── North ── */}
       {northIdx >= 0 && (
-        <PlayerPanel player={state.players[northIdx]} variant="north" />
+        <div className={isCurrentHighlighted(northIdx) ? 'ring-1 ring-cyan-500/60' : ''}>
+          <PlayerPanel player={state.players[northIdx]} variant="north" />
+        </div>
       )}
 
-      {/* ── Middle row: West | Center | East ── */}
+      {/* ── Middle row ── */}
       <div className="flex-1 flex min-h-0">
 
-        {/* West (rotated) */}
+        {/* West */}
         {westIdx >= 0 ? (
-          <PlayerPanel player={state.players[westIdx]} variant="side" direction="west" />
-        ) : (
-          <div className="w-0" />
-        )}
+          <div className={isCurrentHighlighted(westIdx) ? 'ring-1 ring-cyan-500/60' : ''}>
+            <PlayerPanel player={state.players[westIdx]} variant="side" direction="west" />
+          </div>
+        ) : <div className="w-0" />}
 
         {/* Center field */}
         <div className="flex-1 flex flex-col items-center justify-center gap-3 p-3 relative">
-          {/* Deck & trash info */}
+          {/* Deck & trash counts */}
           <div className="flex items-center gap-4 text-xs">
-            <div className="flex items-center gap-1.5 bg-gray-900/70 border border-gray-700/60 rounded-lg px-3 py-1.5">
+            <div className="flex items-center gap-1.5 bg-black/50 border border-gray-700/60 rounded-lg px-3 py-1.5">
               <span className="text-gray-400">山札</span>
               <span className="text-white font-bold">{state.deck.length}</span>
             </div>
-            <div className="flex items-center gap-1.5 bg-gray-900/70 border border-gray-700/60 rounded-lg px-3 py-1.5">
+            <div className="flex items-center gap-1.5 bg-black/50 border border-gray-700/60 rounded-lg px-3 py-1.5">
               <span className="text-gray-400">捨て札</span>
               <span className="text-white font-bold">{state.trash.length}</span>
             </div>
           </div>
 
-          {/* Field center decoration + last played card */}
+          {/* Field decoration + last played card */}
           <div className="relative flex items-center justify-center">
             <img src="/field-center.png" alt="" className="absolute w-48 h-32 object-contain opacity-40 pointer-events-none" draggable={false} />
             {state.lastPlayedCard ? (
@@ -206,49 +173,55 @@ export default function GameBoard({ state, dispatch }: Props) {
             )}
           </div>
 
-          {/* Trash top card (dimmed) */}
+          {/* Trash top card */}
           {state.trash.length > 0 && state.lastPlayedCard?.instanceId !== state.trash[0].instanceId && (
             <div className="flex flex-col items-center gap-1 opacity-40">
-              <p className="text-gray-700 text-[9px]">トラッシュ</p>
               <CardComp card={state.trash[0]} size="sm" dimmed />
             </div>
           )}
 
-          {/* Transitional overlay */}
+          {/* Waiting / processing overlay */}
           {(state.phase === 'draw' || state.phase === 'end_turn' || state.phase === 'resolve') && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-xl">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
               <p className="text-gray-400 animate-pulse text-sm">処理中...</p>
+            </div>
+          )}
+          {state.phase === 'defense' && !isDefenseTarget && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+              <div className="bg-gray-900/90 border border-red-800/60 rounded-2xl px-6 py-4 text-center">
+                <p className="text-red-400 text-sm font-bold">⚔️ 攻撃中</p>
+                <p className="text-gray-400 text-xs mt-1 animate-pulse">{state.players[state.pending?.type === 'DEFENSE_REACTION' ? state.pending.targetIdx : cur]?.name ?? ''} が応答中...</p>
+              </div>
             </div>
           )}
         </div>
 
-        {/* East (rotated) */}
+        {/* East */}
         {eastIdx >= 0 ? (
-          <PlayerPanel player={state.players[eastIdx]} variant="side" direction="east" />
-        ) : (
-          <div className="w-0" />
-        )}
+          <div className={isCurrentHighlighted(eastIdx) ? 'ring-1 ring-cyan-500/60' : ''}>
+            <PlayerPanel player={state.players[eastIdx]} variant="side" direction="east" />
+          </div>
+        ) : <div className="w-0" />}
       </div>
 
-      {/* ── South: current player ── */}
-      <div className="border-t border-gray-800/80">
-        <PlayerPanel player={currentPlayer} isCurrent variant="full" />
+      {/* ── South: me ── */}
+      <div className={`border-t ${isCurrentHighlighted(myPlayerIdx) ? 'border-cyan-500/60' : 'border-gray-800/80'}`}>
+        <PlayerPanel player={myPlayer} isCurrent={isMyTurn} variant="full" />
 
-        {/* Phase area */}
         <div className="px-4 pt-2 pb-1">
 
           {/* Skill phase */}
-          {state.phase === 'skill' && (
+          {isMyTurn && state.phase === 'skill' && (
             <div className="flex flex-col gap-2">
-              {currentPlayer.imakano.skillKey && !currentPlayer.skillUsedThisTurn && (
+              {myPlayer.imakano.skillKey && !myPlayer.skillUsedThisTurn && (
                 <div className="bg-yellow-950/60 border border-yellow-700/60 rounded-xl p-3 glow-gold">
                   <p className="text-yellow-400 text-[10px] font-bold tracking-wider mb-0.5">✨ SKILL</p>
-                  <p className="text-white text-sm font-bold">{currentPlayer.imakano.skillName}</p>
-                  <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{currentPlayer.imakano.skillText}</p>
+                  <p className="text-white text-sm font-bold">{myPlayer.imakano.skillName}</p>
+                  <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">{myPlayer.imakano.skillText}</p>
                 </div>
               )}
               <div className="flex gap-2">
-                {currentPlayer.imakano.skillKey && !currentPlayer.skillUsedThisTurn ? (
+                {myPlayer.imakano.skillKey && !myPlayer.skillUsedThisTurn ? (
                   <button
                     onClick={() => dispatch({ type: 'USE_SKILL' })}
                     className="flex-1 py-3 bg-yellow-700 hover:bg-yellow-600 rounded-xl font-bold text-white text-sm glow-gold"
@@ -257,7 +230,7 @@ export default function GameBoard({ state, dispatch }: Props) {
                   </button>
                 ) : (
                   <div className="flex-1 text-center text-gray-700 text-sm py-3 border border-gray-800 rounded-xl">
-                    {currentPlayer.imakano.skillKey ? 'スキル使用済み' : 'スキルなし'}
+                    {myPlayer.imakano.skillKey ? 'スキル使用済み' : 'スキルなし'}
                   </div>
                 )}
                 <button
@@ -270,10 +243,9 @@ export default function GameBoard({ state, dispatch }: Props) {
             </div>
           )}
 
-          {/* Play phase */}
-          {state.phase === 'play' && !state.pending && (
+          {/* Play phase — my turn */}
+          {isMyTurn && state.phase === 'play' && !hasPending && (
             <div className="flex flex-col gap-2">
-              {/* Quota */}
               <div className="flex justify-center gap-4 text-xs">
                 <span className={state.specialPlaysThisTurn >= MAX_SPECIAL_PLAYS ? 'text-gray-700 line-through' : 'text-violet-400'}>
                   特殊 {state.specialPlaysThisTurn}/{MAX_SPECIAL_PLAYS}
@@ -282,16 +254,13 @@ export default function GameBoard({ state, dispatch }: Props) {
                   攻撃 {state.attackPlaysThisTurn}/{MAX_ATTACK_PLAYS}
                 </span>
               </div>
-
-              {/* Hand + action */}
               <HandView
-                cards={currentPlayer.hand}
+                cards={myPlayer.hand}
                 selectedId={selectedCardId}
                 onSelect={setSelectedCardId}
                 unplayableTypes={unplayableTypes}
               />
-
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 <button
                   disabled={!selectedCardId}
                   onClick={() => {
@@ -304,20 +273,33 @@ export default function GameBoard({ state, dispatch }: Props) {
                 >
                   {selectedCardId ? 'プレイ' : 'カードを選択'}
                 </button>
-
-                {/* Big end turn button */}
                 <button
                   onClick={() => dispatch({ type: 'SKIP_PLAY' })}
-                  className="w-16 h-16 rounded-full bg-blue-700 hover:bg-blue-600 border-2 border-blue-400 shadow-[0_0_16px_rgba(60,130,255,0.5)] flex items-center justify-center flex-shrink-0 self-center"
+                  className="w-16 h-16 rounded-full bg-blue-700 hover:bg-blue-600 border-2 border-blue-400 shadow-[0_0_16px_rgba(60,130,255,0.5)] flex-shrink-0 flex flex-col items-center justify-center"
                 >
-                  <span className="text-white text-[10px] font-bold text-center leading-tight flex flex-col"><span>ターン</span><span>終了</span></span>
+                  <span className="text-white text-[9px] font-bold leading-tight">ターン</span>
+                  <span className="text-white text-[9px] font-bold leading-tight">終了</span>
                 </button>
               </div>
             </div>
           )}
+
+          {/* Hand visible but not my turn */}
+          {!isMyTurn && (
+            <div className="flex flex-col gap-2">
+              <HandView
+                cards={myPlayer.hand}
+                selectedId={null}
+                onSelect={() => {}}
+                unplayableTypes={new Set(['attack', 'defense', 'special'])}
+              />
+              <p className="text-center text-gray-600 text-xs py-1 animate-pulse">
+                {currentPlayer.name} のターンを待っています...
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Game log */}
         <div className="px-4 pb-4">
           <GameLog log={state.log} maxItems={3} />
         </div>

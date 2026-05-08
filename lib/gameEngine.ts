@@ -1,5 +1,3 @@
-'use client';
-
 import { GameState, PlayerState, CardInstance, GameLog, Pending } from './types';
 import { IMAKANO_DEFS, RENTAL_IMAKANO } from './imakano';
 import { buildDeck, shuffle } from './cards';
