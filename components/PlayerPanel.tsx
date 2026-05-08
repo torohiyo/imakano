@@ -2,13 +2,12 @@
 
 import { PlayerState } from '@/lib/types';
 
-// Frame is placed BEHIND the character so its opaque interior is hidden by the portrait.
-// Only the frame's decorative border (in the padding area) remains visible.
+// Character as CSS background-image; transparent frame PNG sits on top.
+// Transparent pixels in the frame correctly reveal the character background.
 function Portrait({
   imakanoId,
   width,
   height,
-  framePad,
   borderRadius = '12px',
   skillRing = false,
   attackRing = false,
@@ -17,64 +16,49 @@ function Portrait({
   imakanoId: string;
   width: number;
   height: number;
-  framePad: number;
   borderRadius?: string;
   skillRing?: boolean;
   attackRing?: boolean;
   skillLabel?: boolean;
 }) {
-  const outerW = width + framePad * 2;
-  const outerH = height + framePad * 2;
-
   return (
-    <div style={{ position: 'relative', flexShrink: 0, width: outerW, height: outerH }}>
-      {/* Frame behind — z-index 0 */}
+    <div
+      style={{
+        position: 'relative',
+        flexShrink: 0,
+        width,
+        height,
+        borderRadius,
+        overflow: 'hidden',
+        backgroundImage: `url('/imakano/${imakanoId}.png')`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'top center',
+        boxShadow: attackRing
+          ? '0 0 0 2px rgba(220,38,38,0.9), 0 0 18px rgba(220,38,38,0.6)'
+          : skillRing
+          ? '0 0 0 2px rgba(250,200,50,0.8), 0 0 20px rgba(250,200,50,0.5)'
+          : '0 4px 20px rgba(0,0,0,0.5)',
+      }}
+    >
+      {/* Frame overlay — transparent interior reveals character background */}
       <img
         src="/icons/portrait-frame.png"
         alt=""
         draggable={false}
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill', zIndex: 0, pointerEvents: 'none' }}
+        style={{ display: 'block', width: '100%', height: '100%', objectFit: 'fill', pointerEvents: 'none' }}
       />
-      {/* Character in front — covers the frame's interior */}
-      <div
-        style={{
-          position: 'absolute',
-          top: framePad,
-          left: framePad,
-          width,
-          height,
-          overflow: 'hidden',
-          borderRadius,
-          zIndex: 1,
-          boxShadow: attackRing
-            ? '0 0 0 2px rgba(220,38,38,0.9), 0 0 18px rgba(220,38,38,0.6)'
-            : skillRing
-            ? '0 0 0 2px rgba(250,200,50,0.8), 0 0 20px rgba(250,200,50,0.5)'
-            : '0 4px 20px rgba(0,0,0,0.5)',
-        }}
-      >
-        <img
-          src={`/imakano/${imakanoId}.png`}
-          alt=""
-          draggable={false}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top center' }}
-        />
-      </div>
-      {/* Skill label — above character */}
+      {/* Skill label */}
       {skillLabel && (
         <div
           style={{
             position: 'absolute',
-            bottom: framePad,
-            left: framePad,
-            right: framePad,
-            borderBottomLeftRadius: borderRadius,
-            borderBottomRightRadius: borderRadius,
+            bottom: 0,
+            left: 0,
+            right: 0,
             paddingBottom: 4,
             paddingTop: 10,
             textAlign: 'center',
             background: 'linear-gradient(to top, rgba(160,110,0,0.9), transparent)',
-            zIndex: 2,
             pointerEvents: 'none',
           }}
         >
@@ -121,7 +105,7 @@ export default function PlayerPanel({
           imakanoId={imakanoId}
           width={90}
           height={112}
-          framePad={13}
+
           borderRadius="14px"
           attackRing={!!onAttack}
         />
@@ -180,7 +164,7 @@ export default function PlayerPanel({
             imakanoId={imakanoId}
             width={36}
             height={45}
-            framePad={5}
+  
             borderRadius="6px"
             attackRing={!!onAttack}
           />
@@ -223,7 +207,7 @@ export default function PlayerPanel({
             imakanoId={imakanoId}
             width={120}
             height={150}
-            framePad={17}
+  
             borderRadius="18px"
             skillRing={!!onPortraitTap}
             skillLabel={!!onPortraitTap}
