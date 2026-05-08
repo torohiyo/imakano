@@ -18,7 +18,17 @@ function Portrait({
   attackRing?: boolean;
   skillLabel?: boolean;
 }) {
-  const height = Math.round(width / (154 / 184)); // maintain frame aspect ratio
+  const height = Math.round(width * 1.25); // 4:5 portrait ratio
+
+  const border = attackRing
+    ? '2px solid rgba(220,38,38,0.9)'
+    : '2px solid rgba(196,155,60,0.85)';
+
+  const boxShadow = attackRing
+    ? '0 0 0 1px rgba(220,38,38,0.4), 0 0 18px rgba(220,38,38,0.6), inset 0 0 0 1px rgba(255,100,100,0.15)'
+    : skillRing
+    ? '0 0 0 1px rgba(250,200,50,0.5), 0 0 20px rgba(250,200,50,0.55), inset 0 0 0 1px rgba(255,220,100,0.2)'
+    : '0 0 0 1px rgba(120,90,30,0.4), 0 4px 20px rgba(0,0,0,0.6), inset 0 0 0 1px rgba(255,220,100,0.08)';
 
   return (
     <div
@@ -27,23 +37,15 @@ function Portrait({
         flexShrink: 0,
         width,
         height,
+        borderRadius: 8,
         overflow: 'hidden',
         backgroundImage: `url('/imakano/${imakanoId}.png')`,
         backgroundSize: 'cover',
         backgroundPosition: 'top center',
-        boxShadow: attackRing
-          ? '0 0 0 2px rgba(220,38,38,0.9), 0 0 18px rgba(220,38,38,0.6)'
-          : skillRing
-          ? '0 0 0 2px rgba(250,200,50,0.8), 0 0 20px rgba(250,200,50,0.5)'
-          : '0 4px 20px rgba(0,0,0,0.5)',
+        border,
+        boxShadow,
       }}
     >
-      <img
-        src="/icons/portrait-frame.png"
-        alt=""
-        draggable={false}
-        style={{ display: 'block', width: '100%', height: '100%', pointerEvents: 'none' }}
-      />
       {skillLabel && (
         <div
           style={{
