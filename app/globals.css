@@ -1,12 +1,50 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0f0f1a;
+  --background: #08080f;
   --foreground: #e8e8f0;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
+  background-image:
+    radial-gradient(ellipse 120% 50% at 50% -5%, rgba(0, 100, 160, 0.18) 0%, transparent 65%),
+    radial-gradient(ellipse 70% 40% at 85% 60%, rgba(80, 0, 120, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse 70% 40% at 15% 80%, rgba(0, 60, 100, 0.06) 0%, transparent 60%);
   color: var(--foreground);
   font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
 }
+
+/* Neon glow utilities */
+.glow-cyan {
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.25), 0 0 24px rgba(0, 229, 255, 0.06);
+}
+.glow-cyan-strong {
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.5), 0 0 40px rgba(0, 229, 255, 0.15);
+}
+.glow-red {
+  box-shadow: 0 0 12px rgba(255, 60, 60, 0.35);
+}
+.glow-blue {
+  box-shadow: 0 0 12px rgba(60, 130, 255, 0.35);
+}
+.glow-purple {
+  box-shadow: 0 0 12px rgba(160, 60, 255, 0.35);
+}
+.glow-gold {
+  box-shadow: 0 0 12px rgba(255, 200, 50, 0.35);
+}
+.glow-pink {
+  box-shadow: 0 0 12px rgba(255, 100, 150, 0.35);
+}
+
+/* Card selected pop */
+.card-selected {
+  transform: translateY(-12px) scale(1.08);
+  z-index: 10;
+}
+
+/* Scrollbar hide */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

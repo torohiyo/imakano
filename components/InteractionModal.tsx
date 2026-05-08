@@ -10,6 +10,18 @@ interface Props {
   dispatch: (action: GameAction) => void;
 }
 
+function ModalShell({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen flex flex-col p-5 bg-gray-950/98">
+      <div className="mb-6">
+        <h2 className="text-white font-bold text-xl">{title}</h2>
+        {subtitle && <p className="text-gray-500 text-sm mt-1">{subtitle}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export default function InteractionModal({ state, dispatch }: Props) {
   const { pending } = state;
   const cur = state.currentPlayerIndex;
@@ -20,18 +32,28 @@ export default function InteractionModal({ state, dispatch }: Props) {
     case 'SELECT_TARGET': {
       const isSkill = pending.source === 'skill';
       return (
-        <ModalShell title={isSkill ? 'スキルの対象を選んでください' : '攻撃対象を選んでください'}>
+        <ModalShell
+          title={isSkill ? 'スキルの対象' : '攻撃対象を選択'}
+          subtitle="相手を1人選んでください"
+        >
           <div className="flex flex-col gap-3">
             {state.players.map((p, i) => {
               if (i === cur) return null;
+              const imakanoId = p.imakano.isRental ? 'rental' : p.imakano.id;
               return (
                 <button
                   key={p.id}
                   onClick={() => dispatch({ type: 'SELECT_TARGET', targetPlayerIdx: i })}
-                  className="w-full py-4 bg-gray-800 hover:bg-gray-700 active:bg-gray-600 border border-gray-600 rounded-xl text-left px-4"
+                  className="flex items-center gap-4 w-full bg-gray-900/80 hover:bg-gray-800 border border-gray-700 hover:border-cyan-600 rounded-xl px-4 py-3 transition-all text-left group"
                 >
-                  <p className="text-white font-bold">{p.name}</p>
-                  <p className="text-gray-400 text-sm">{p.imakano.name} — ♥ {p.happiness}</p>
+                  <div className="w-12 h-14 rounded-lg overflow-hidden border border-gray-600 group-hover:border-cyan-500 flex-shrink-0">
+                    <img src={`/imakano/${imakanoId}.png`} alt="" className="w-full h-full object-cover object-top" />
+                  </div>
+                  <div>
+                    <p className="text-white font-bold">{p.name}</p>
+                    <p className="text-gray-400 text-sm">{p.imakano.name}</p>
+                    <p className="text-pink-400 text-sm">♥ {p.happiness}</p>
+                  </div>
                 </button>
               );
             })}
@@ -64,26 +86,23 @@ export default function InteractionModal({ state, dispatch }: Props) {
       const player = state.players[cur];
       const canReturn = player.happiness >= 2;
       return (
-        <ModalShell title="鬱小説">
-          <p className="text-gray-300 text-sm mb-2">
-            全員の幸せゲージが -1 されました。
-          </p>
-          <p className="text-gray-400 text-sm mb-6">
-            幸せゲージ -2（現在: {player.happiness}）で手札に戻すか、このままトラッシュするか選んでください。
-          </p>
-          <div className="flex flex-col gap-3">
+        <ModalShell title="鬱小説" subtitle="全員の幸せゲージが -1 されました">
+          <div className="bg-gray-900/60 border border-gray-700 rounded-xl p-4 mb-6">
+            <p className="text-gray-300 text-sm">幸せゲージ -2（現在: {player.happiness}）で手札に戻せます</p>
+          </div>
+          <div className="flex flex-col gap-3 mt-auto">
             <button
               onClick={() => dispatch({ type: 'RESOLVE_UTSU_NOVEL', returnToHand: true })}
               disabled={!canReturn}
-              className="w-full py-4 bg-violet-800 hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold text-white"
+              className="w-full py-4 bg-violet-800 hover:bg-violet-700 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl font-bold text-white glow-purple"
             >
               幸せゲージ -2 → 手札に戻す
             </button>
             <button
               onClick={() => dispatch({ type: 'RESOLVE_UTSU_NOVEL', returnToHand: false })}
-              className="w-full py-4 bg-gray-700 hover:bg-gray-600 rounded-xl text-gray-300"
+              className="w-full py-4 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-xl text-gray-300"
             >
-              そのままトラッシュ
+              トラッシュ
             </button>
           </div>
         </ModalShell>
@@ -95,15 +114,6 @@ export default function InteractionModal({ state, dispatch }: Props) {
   }
 }
 
-function ModalShell({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen flex flex-col p-5 bg-gray-950">
-      <h2 className="text-white font-bold text-xl mb-6">{title}</h2>
-      {children}
-    </div>
-  );
-}
-
 function ViewSelectModal({ state, dispatch }: Props) {
   const pending = state.pending as Extract<typeof state.pending, { type: 'VIEW_SELECT' }>;
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -112,31 +122,27 @@ function ViewSelectModal({ state, dispatch }: Props) {
   const toggle = (id: string) => {
     setSelected(prev => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else if (next.size < keepCount) {
-        next.add(id);
-      }
+      if (next.has(id)) { next.delete(id); }
+      else if (next.size < keepCount) { next.add(id); }
       return next;
     });
   };
 
   return (
-    <ModalShell title="カードを確認">
-      <p className="text-gray-400 text-sm mb-4">{label}（{selected.size}/{keepCount}枚選択中）</p>
-      <div className="grid grid-cols-2 gap-3 mb-6">
+    <ModalShell title="イマカノの妹" subtitle={`${label}（${selected.size}/${keepCount}枚選択）`}>
+      <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 justify-center">
         {viewedCards.map(card => (
-          <button key={card.instanceId} onClick={() => toggle(card.instanceId)} className="text-left">
-            <CardComp card={card} selected={selected.has(card.instanceId)} />
+          <button key={card.instanceId} onClick={() => toggle(card.instanceId)} className="flex-shrink-0">
+            <CardComp card={card} selected={selected.has(card.instanceId)} size="md" />
           </button>
         ))}
       </div>
       <button
         onClick={() => dispatch({ type: 'RESOLVE_VIEW_SELECT', keptIds: [...selected] })}
         disabled={selected.size !== keepCount}
-        className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold text-white"
+        className="w-full mt-4 py-4 bg-cyan-700 hover:bg-cyan-600 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl font-bold text-white glow-cyan"
       >
-        決定（{selected.size}/{keepCount}）
+        {selected.size}/{keepCount}枚を手札に加える
       </button>
     </ModalShell>
   );
@@ -147,38 +153,32 @@ function ViewSelectSpecialsModal({ state, dispatch }: Props) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const { viewedCards } = pending!;
 
-  const toggle = (id: string, isSpecial: boolean) => {
-    if (!isSpecial) return;
+  const toggle = (card: CardInstance) => {
+    if (card.def.type !== 'special') return;
     setSelected(prev => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      next.has(card.instanceId) ? next.delete(card.instanceId) : next.add(card.instanceId);
       return next;
     });
   };
 
   return (
-    <ModalShell title="イマカノの手紙">
-      <p className="text-gray-400 text-sm mb-4">特殊札を好きなだけ手札に加えられます（{selected.size}枚選択中）</p>
-      <div className="grid grid-cols-2 gap-3 mb-6">
+    <ModalShell title="イマカノの手紙" subtitle={`特殊札を好きなだけ手札に追加（${selected.size}枚選択）`}>
+      <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 justify-center flex-wrap">
         {viewedCards.map(card => {
           const isSpecial = card.def.type === 'special';
           return (
-            <button
-              key={card.instanceId}
-              onClick={() => toggle(card.instanceId, isSpecial)}
-              className="text-left"
-              disabled={!isSpecial}
-            >
-              <CardComp card={card} selected={selected.has(card.instanceId)} dimmed={!isSpecial} />
+            <button key={card.instanceId} onClick={() => toggle(card)} className="flex-shrink-0" disabled={!isSpecial}>
+              <CardComp card={card} selected={selected.has(card.instanceId)} dimmed={!isSpecial} size="md" />
             </button>
           );
         })}
       </div>
       <button
         onClick={() => dispatch({ type: 'RESOLVE_VIEW_SELECT_SPECIALS', keptIds: [...selected] })}
-        className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-bold text-white"
+        className="w-full mt-4 py-4 bg-cyan-700 hover:bg-cyan-600 rounded-xl font-bold text-white glow-cyan"
       >
-        決定（{selected.size}枚を手札に加える）
+        {selected.size}枚を手札に加える
       </button>
     </ModalShell>
   );
@@ -194,22 +194,17 @@ function DiscardModal({ state, dispatch }: Props) {
   const toggle = (id: string) => {
     setSelected(prev => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else if (next.size < count) {
-        next.add(id);
-      }
+      if (next.has(id)) { next.delete(id); }
+      else if (next.size < count) { next.add(id); }
       return next;
     });
   };
 
   return (
-    <ModalShell title={`手札を${count}枚捨てる`}>
-      <p className="text-gray-400 text-sm mb-1">{player.name} — {cause}</p>
-      <p className="text-gray-500 text-xs mb-4">{selected.size}/{count}枚選択中</p>
-      <div className="grid grid-cols-3 gap-2 mb-6">
+    <ModalShell title={`手札を${count}枚捨てる`} subtitle={`${player.name} — ${cause}`}>
+      <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-4 justify-center" style={{ minHeight: 120 }}>
         {player.hand.map(card => (
-          <button key={card.instanceId} onClick={() => toggle(card.instanceId)} className="text-left">
+          <button key={card.instanceId} onClick={() => toggle(card.instanceId)} className="flex-shrink-0" style={{ paddingTop: 12 }}>
             <CardComp card={card} selected={selected.has(card.instanceId)} size="sm" />
           </button>
         ))}
@@ -217,7 +212,7 @@ function DiscardModal({ state, dispatch }: Props) {
       <button
         onClick={() => dispatch({ type: 'RESOLVE_DISCARD', discardedIds: [...selected] })}
         disabled={selected.size !== count}
-        className="w-full py-4 bg-red-700 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold text-white"
+        className="w-full mt-4 py-4 bg-red-800 hover:bg-red-700 disabled:opacity-30 disabled:cursor-not-allowed rounded-xl font-bold text-white glow-red"
       >
         {selected.size}/{count}枚トラッシュ
       </button>
@@ -240,39 +235,23 @@ function PeekStealModal({ state, dispatch }: Props) {
     });
   };
 
-  const defenseCards = peekedCards.filter(c => c.def.type === 'defense');
-
   return (
-    <ModalShell title="カツアゲ">
-      <p className="text-gray-400 text-sm mb-4">
-        {target.name} の手札3枚を見ています。防御札を選んで奪えます。
-      </p>
-      {peekedCards.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          {peekedCards.map(card => {
-            const isDefense = card.def.type === 'defense';
-            return (
-              <button
-                key={card.instanceId}
-                onClick={() => toggle(card)}
-                disabled={!isDefense}
-                className="text-left"
-              >
-                <CardComp card={card} selected={selected.has(card.instanceId)} dimmed={!isDefense} />
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="text-gray-600 text-sm mb-6">手札なし</p>
-      )}
+    <ModalShell title="カツアゲ" subtitle={`${target.name} の手札3枚を確認中。防御札を奪えます`}>
+      <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 justify-center">
+        {peekedCards.map(card => {
+          const isDefense = card.def.type === 'defense';
+          return (
+            <button key={card.instanceId} onClick={() => toggle(card)} className="flex-shrink-0" disabled={!isDefense}>
+              <CardComp card={card} selected={selected.has(card.instanceId)} dimmed={!isDefense} size="md" />
+            </button>
+          );
+        })}
+      </div>
       <button
         onClick={() => dispatch({ type: 'RESOLVE_PEEK_STEAL', stolenIds: [...selected] })}
-        className="w-full py-4 bg-yellow-700 hover:bg-yellow-600 rounded-xl font-bold text-white"
+        className="w-full mt-4 py-4 bg-yellow-700 hover:bg-yellow-600 rounded-xl font-bold text-white glow-gold"
       >
-        {selected.size > 0
-          ? `防御札 ${selected.size}枚を奪う → 幸せゲージ+1`
-          : '奪わない（効果なし）'}
+        {selected.size > 0 ? `防御札 ${selected.size}枚を奪う → 幸せゲージ +1` : '奪わない（効果なし）'}
       </button>
     </ModalShell>
   );
@@ -286,38 +265,26 @@ function PeekTrashModal({ state, dispatch }: Props) {
 
   const toggle = (card: CardInstance) => {
     if (card.def.type !== 'defense') return;
-    setSelected(prev => (prev === card.instanceId ? null : card.instanceId));
+    setSelected(prev => prev === card.instanceId ? null : card.instanceId);
   };
 
   return (
-    <ModalShell title="スパイ">
-      <p className="text-gray-400 text-sm mb-4">
-        {target.name} の手札を確認しました。防御札を1枚トラッシュできます。
-      </p>
-      {peekedCards.length > 0 ? (
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          {peekedCards.map(card => {
-            const isDefense = card.def.type === 'defense';
-            return (
-              <button
-                key={card.instanceId}
-                onClick={() => toggle(card)}
-                disabled={!isDefense}
-                className="text-left"
-              >
-                <CardComp card={card} selected={selected === card.instanceId} dimmed={!isDefense} />
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="text-gray-600 text-sm mb-6">手札なし</p>
-      )}
+    <ModalShell title="スパイ" subtitle={`${target.name} の手札を確認中。防御札を1枚トラッシュできます`}>
+      <div className="flex gap-4 overflow-x-auto hide-scrollbar pb-4 justify-center">
+        {peekedCards.map(card => {
+          const isDefense = card.def.type === 'defense';
+          return (
+            <button key={card.instanceId} onClick={() => toggle(card)} className="flex-shrink-0" disabled={!isDefense}>
+              <CardComp card={card} selected={selected === card.instanceId} dimmed={!isDefense} size="md" />
+            </button>
+          );
+        })}
+      </div>
       <button
         onClick={() => dispatch({ type: 'RESOLVE_PEEK_TRASH', trashedId: selected })}
-        className="w-full py-4 bg-red-800 hover:bg-red-700 rounded-xl font-bold text-white"
+        className="w-full mt-4 py-4 bg-red-900 hover:bg-red-800 border border-red-700 rounded-xl font-bold text-white"
       >
-        {selected ? '選んだ防御札をトラッシュ' : 'そのまま終わる（防御札なし or スキップ）'}
+        {selected ? '選んだ防御札をトラッシュ' : 'トラッシュしない'}
       </button>
     </ModalShell>
   );
