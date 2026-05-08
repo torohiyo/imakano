@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { GameState, CardInstance } from '@/lib/types';
 import { GameAction } from '@/lib/gameEngine';
 import { MAX_SPECIAL_PLAYS, MAX_ATTACK_PLAYS, MARRIAGE_VICTORY_THRESHOLD } from '@/lib/constants';
@@ -9,6 +9,8 @@ import HandView from './HandView';
 import CardComp from './CardComp';
 import InteractionModal from './InteractionModal';
 import GameLog from './GameLog';
+import AnimationLayer from './AnimationLayer';
+import { AnimationEvent, AnimEventPayload, AnimPosition } from '@/lib/animationTypes';
 
 interface Props {
   state: GameState;
@@ -90,6 +92,9 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
   const [zoomedCard, setZoomedCard] = useState<CardInstance | null>(null);
   const [showLog, setShowLog] = useState(false);
   const [afkSecondsLeft, setAfkSecondsLeft] = useState<number | null>(null);
+  const [animEvents, setAnimEvents] = useState<AnimationEvent[]>([]);
+  const animSeq = useRef(0);
+  const prevStateRef = useRef<GameState>(state);
 
   const n = state.players.length;
   const cur = state.currentPlayerIndex;
@@ -118,6 +123,59 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
   const eastIdx  = n >= 3 ? (myPlayerIdx + 1) % n : -1;
   const northIdx = n === 2 ? (myPlayerIdx + 1) % n : n >= 3 ? (myPlayerIdx + 2) % n : -1;
   const westIdx  = n >= 4 ? (myPlayerIdx + 3) % n : -1;
+
+  function playerPos(idx: number): AnimPosition {
+    if (idx === myPlayerIdx) return 'south';
+    if (idx === northIdx)    return 'north';
+    if (idx === eastIdx)     return 'east';
+    if (idx === westIdx)     return 'west';
+    return 'north';
+  }
+
+  function pushAnim(ev: AnimEventPayload) {
+    const id = ++animSeq.current;
+    setAnimEvents(prev => [...prev, { ...ev, id } as AnimationEvent]);
+  }
+
+  // Detect state changes → fire animation events
+  useEffect(() => {
+    const prev = prevStateRef.current;
+
+    // Card played
+    if (state.lastPlayedCard && state.lastPlayedCard.instanceId !== prev.lastPlayedCard?.instanceId) {
+      pushAnim({
+        type: 'PLAY_CARD_REVEAL',
+        card: state.lastPlayedCard,
+        fromPosition: playerPos(state.currentPlayerIndex),
+      });
+    }
+
+    // Happiness changes
+    state.players.forEach((p, i) => {
+      const prevHp = prev.players[i]?.happiness ?? p.happiness;
+      const delta = p.happiness - prevHp;
+      if (delta < 0) pushAnim({ type: 'DAMAGE', targetPosition: playerPos(i), amount: -delta });
+      else if (delta > 0) pushAnim({ type: 'HEAL', targetPosition: playerPos(i), amount: delta });
+    });
+
+    // Block: defense reaction resolved and target's hp didn't drop
+    const prevPending = prev.pending;
+    if (prevPending?.type === 'DEFENSE_REACTION' && state.pending?.type !== 'DEFENSE_REACTION') {
+      const { targetIdx } = prevPending;
+      const prevHp = prev.players[targetIdx]?.happiness;
+      const curHp  = state.players[targetIdx]?.happiness;
+      if (prevHp !== undefined && curHp !== undefined && curHp >= prevHp) {
+        pushAnim({ type: 'BLOCK', targetPosition: playerPos(targetIdx) });
+      }
+    }
+
+    // Win
+    if (state.phase === 'finished' && prev.phase !== 'finished' && state.winner) {
+      pushAnim({ type: 'WIN_MARRIAGE', playerName: state.winner.name, imakanoName: state.winner.imakano.name });
+    }
+
+    prevStateRef.current = state;
+  }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasPending = state.pending !== null;
   const isDefenseTarget =
@@ -421,6 +479,12 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
 
       {/* ── Overlay ── */}
       {overlayContent}
+
+      {/* ── Animation Layer ── */}
+      <AnimationLayer
+        events={animEvents}
+        onDone={id => setAnimEvents(prev => prev.filter(e => e.id !== id))}
+      />
     </div>
   );
 }
