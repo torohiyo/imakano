@@ -371,7 +371,10 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
 
       <div
         style={{
-          width: '100vw', height: '100dvh',
+          width: '100vw',
+          // 100dvh: アドレスバーを除いた動的ビューポート高さ。iOS/Androidの両方で正しく動作する。
+          // 100vh フォールバック（古いブラウザ用）はCSSクラス経由で当てる
+          height: '100dvh',
           display: 'grid',
           gridTemplateRows: '16% 30% 14% 40%',
           overflow: 'hidden',
@@ -379,14 +382,22 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           backgroundImage: 'url(/board-bg.png)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
+          boxSizing: 'border-box',
+          // SafeArea: iOSノッチ・ホームインジケーター分の左右余白
+          paddingLeft: 'env(safe-area-inset-left, 0px)',
+          paddingRight: 'env(safe-area-inset-right, 0px)',
         }}
+        className="game-board-root"
       >
         {/* ── Zone 1: Opponent HUD ── */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 8,
-          padding: '0 10px',
+          // 上: iOSステータスバー分（ノッチなしでも0pxになる）
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingLeft: 10, paddingRight: 10,
           background: 'linear-gradient(to bottom, rgba(0,0,0,0.78), rgba(0,0,0,0.45))',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
+          boxSizing: 'border-box',
         }}>
           {/* Deck / Grave counts */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
@@ -672,8 +683,11 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           display: 'flex', flexDirection: 'column', justifyContent: 'center',
           background: 'linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0.35))',
           borderTop: '1px solid rgba(255,255,255,0.05)',
-          padding: '6px 0',
+          // 下: iOSホームインジケーター分（横持ちで約21px）
+          paddingTop: 6,
+          paddingBottom: 'max(6px, env(safe-area-inset-bottom, 0px))',
           overflow: 'hidden',
+          boxSizing: 'border-box',
         }}>
           <div style={{ paddingRight: isMyTurn && state.phase === 'play' && !hasPending ? 80 : 12, paddingLeft: 8 }}>
             <HandView
@@ -691,7 +705,11 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
 
           {/* Turn end button */}
           {isMyTurn && state.phase === 'play' && !hasPending && (
-            <div style={{ position: 'absolute', right: 10, bottom: 10 }}>
+            <div style={{
+              position: 'absolute',
+              right: 10,
+              bottom: 'max(10px, env(safe-area-inset-bottom, 0px))',
+            }}>
               <TurnEndButton onClick={() => dispatch({ type: 'SKIP_PLAY' })} />
             </div>
           )}

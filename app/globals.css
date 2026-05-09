@@ -62,3 +62,21 @@ html, body {
   overflow: hidden;
   height: 100%;
 }
+
+/* SafeArea CSS variables for iOS notch / home indicator */
+:root {
+  --sat: env(safe-area-inset-top,    0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left,   0px);
+  --sar: env(safe-area-inset-right,  0px);
+}
+
+/* dvh 未対応の旧ブラウザ用 100vh フォールバック */
+.game-board-root {
+  height: 100vh;
+}
+@supports (height: 100dvh) {
+  .game-board-root {
+    height: 100dvh;
+  }
+}
