@@ -7,9 +7,7 @@ function keepValue(card: CardInstance, state: GameState, playerIdx: number): num
   const p = state.players[playerIdx];
   switch (card.def.effectKey) {
     case 'marriage':    return p.happiness >= MARRIAGE_VICTORY_THRESHOLD ? 100 : 25;
-    case 'ultra_defense': return 88;
     case 'ring':        return 82;
-    case 'super_defense': return 76;
     case 'house':       return 70;
     case 'ultra_attack': return 66;
     case 'defense':     return 64;
@@ -69,19 +67,11 @@ function cpuDefenseDecision(
     attackCard.def.effectKey === 'super_attack'  ? 2 : 1;
   const hpAfter = cpu.happiness - dmg;
 
-  const defCards = cpu.hand.filter(c =>
-    ['defense', 'super_defense', 'ultra_defense'].includes(c.def.effectKey)
-  );
+  const defCards = cpu.hand.filter(c => c.def.effectKey === 'defense');
 
-  // Skip if HP stays above safe threshold or no defense cards
   if (defCards.length === 0 || hpAfter >= 2) return { type: 'SKIP_DEFENSE' };
 
-  // Use the cheapest defense card first (save stronger ones)
-  const card =
-    defCards.find(c => c.def.effectKey === 'defense') ??
-    defCards.find(c => c.def.effectKey === 'super_defense') ??
-    defCards[0];
-  return { type: 'DEFEND', cardInstanceId: card.instanceId };
+  return { type: 'DEFEND', cardInstanceId: defCards[0].instanceId };
 }
 
 // ── Resolve pending interactions ──────────────────────────────────────────────
@@ -122,10 +112,7 @@ function cpuResolvePending(
       return { type: 'RESOLVE_PEEK_STEAL', stolenIds };
     }
     case 'PEEK_TRASH': {
-      const defCard =
-        pending.peekedCards.find(c => c.def.effectKey === 'ultra_defense') ??
-        pending.peekedCards.find(c => c.def.effectKey === 'super_defense') ??
-        pending.peekedCards.find(c => c.def.effectKey === 'defense');
+      const defCard = pending.peekedCards.find(c => c.def.effectKey === 'defense');
       return { type: 'RESOLVE_PEEK_TRASH', trashedId: defCard?.instanceId ?? null };
     }
     case 'UTSU_NOVEL_CHOICE': {
@@ -196,7 +183,14 @@ export function cpuDecide(state: GameState, cpuIdx: number): GameAction | null {
     }
 
     case 'play':
-      if (pending) return cpuResolvePending(state, cpuIdx, pending);
+      if (pending) {
+        // Don't auto-resolve DISCARD that targets a non-CPU player (human's defense cost)
+        if (pending.type === 'DISCARD') {
+          const discardTarget = state.pendingTargetIdx ?? cur;
+          if (discardTarget !== cpuIdx) return null;
+        }
+        return cpuResolvePending(state, cpuIdx, pending);
+      }
       return cpuPlayCard(state, cpuIdx);
 
     case 'end_turn':

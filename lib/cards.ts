@@ -32,24 +32,8 @@ export const CARD_DEFS: CardDef[] = [
     name: '防御',
     type: 'defense',
     effectKey: 'defense',
-    effectText: '手札1枚トラッシュ → 「攻撃」を無効化',
-    count: 9,
-  },
-  {
-    id: 'super_defense',
-    name: '超防御',
-    type: 'defense',
-    effectKey: 'super_defense',
-    effectText: '手札2枚トラッシュ → 攻撃・超攻撃・特殊札を無効化',
-    count: 5,
-  },
-  {
-    id: 'ultra_defense',
-    name: '超超防御',
-    type: 'defense',
-    effectKey: 'ultra_defense',
-    effectText: '攻撃札を無効化 → 2枚引く → 手札3枚トラッシュ',
-    count: 2,
+    effectText: '手札1枚トラッシュ → 攻撃を無効化',
+    count: 12,
   },
   // ===== 特殊札 =====
   {

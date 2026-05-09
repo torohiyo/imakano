@@ -83,18 +83,13 @@ function passDevice(state: GameState, toIdx: number, reason: string): GameState 
   };
 }
 
-// プレイヤーがまだカードをプレイできるかチェック
-function canPlayMore(state: GameState): boolean {
-  const player = state.players[state.currentPlayerIndex];
-  const canSpecial = state.specialPlaysThisTurn < MAX_SPECIAL_PLAYS;
-  const canAttack = state.attackPlaysThisTurn < MAX_ATTACK_PLAYS;
-  const hasSpecial = player.hand.some(c => c.def.type === 'special');
-  const hasAttack = player.hand.some(c => c.def.type === 'attack');
-  return (canSpecial && hasSpecial) || (canAttack && hasAttack);
+function nextPhase(_state: GameState): GameState['phase'] {
+  return 'play';
 }
 
-function nextPhase(state: GameState): GameState['phase'] {
-  return canPlayMore(state) ? 'play' : 'end_turn';
+function randomOpponentIdx(state: GameState, selfIdx: number): number {
+  const opponents = state.players.map((_, i) => i).filter(i => i !== selfIdx);
+  return opponents[Math.floor(Math.random() * opponents.length)];
 }
 
 // ===== START GAME =====
@@ -212,10 +207,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
           return { ...s, phase: 'play' };
         }
         case 'skill_yankee': {
-          if (action.targetPlayerIdx === undefined) {
-            return { ...state, pending: { type: 'SELECT_TARGET', source: 'skill', skillKey: sk } };
-          }
-          const targetIdx = action.targetPlayerIdx;
+          const targetIdx = action.targetPlayerIdx ?? randomOpponentIdx(state, cur);
           const target = state.players[targetIdx];
           const peekCount = Math.min(3, target.hand.length);
           const peeked = target.hand.slice(0, peekCount);
@@ -277,23 +269,19 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
 
       switch (card.def.effectKey) {
-        // ---- 攻撃系（ターゲット選択が必要） ----
+        // ---- 攻撃系（ランダムで対象自動選択） ----
         case 'attack':
         case 'super_attack':
         case 'ultra_attack':
         case 'spy': {
-          // 1v1: auto-select the only opponent
-          if (state.players.length === 2) {
-            const targetIdx = (cur + 1) % 2;
-            const target = s.players[targetIdx];
-            if (card.def.effectKey === 'spy') {
-              const s2 = addLog(s, `${s.players[cur].name}「スパイ」: ${target.name} の手札を確認`, 'skill');
-              return { ...s2, pendingTargetIdx: targetIdx, pending: { type: 'PEEK_TRASH', targetIdx, peekedCards: target.hand } };
-            }
-            const s2 = addLog(s, `${s.players[cur].name} が ${target.name} に「${card.def.name}」を使用！`, 'attack');
-            return { ...s2, phase: 'defense', pendingTargetIdx: targetIdx, pending: { type: 'DEFENSE_REACTION', attackerIdx: cur, targetIdx, attackCard: card } };
+          const targetIdx = randomOpponentIdx(s, cur);
+          const target = s.players[targetIdx];
+          if (card.def.effectKey === 'spy') {
+            const s2 = addLog(s, `${s.players[cur].name}「スパイ」: ${target.name} の手札を確認`, 'skill');
+            return { ...s2, pendingTargetIdx: targetIdx, pending: { type: 'PEEK_TRASH', targetIdx, peekedCards: target.hand } };
           }
-          return { ...s, pending: { type: 'SELECT_TARGET', source: 'card', cardInstanceId: action.cardInstanceId } };
+          const s2 = addLog(s, `${s.players[cur].name} が ${target.name} に「${card.def.name}」を使用！`, 'attack');
+          return { ...s2, phase: 'defense', pendingTargetIdx: targetIdx, pending: { type: 'DEFENSE_REACTION', attackerIdx: cur, targetIdx, attackCard: card } };
         }
 
         // ---- 幸せゲージ増加系 ----
@@ -393,47 +381,16 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (!pending || pending.type !== 'DEFENSE_REACTION') return state;
       const { attackerIdx, targetIdx, attackCard } = pending;
       const defCard = state.players[targetIdx].hand.find(c => c.instanceId === action.cardInstanceId);
-      if (!defCard) return state;
-
-      if (!canDefend(defCard.def.effectKey, attackCard.def.effectKey)) {
-        return addLog(state, 'このカードでは防御できません', 'system');
-      }
+      if (!defCard || defCard.def.effectKey !== 'defense') return state;
 
       let s: GameState = { ...state, pending: null };
-
-      switch (defCard.def.effectKey) {
-        case 'defense': {
-          const ps = removeCardFromHand(s.players, targetIdx, defCard.instanceId);
-          s = { ...s, players: ps };
-          s = addLog(s, `${ps[targetIdx].name}「防御」発動！手札1枚トラッシュが必要`, 'defense');
-          s = { ...s, pendingCard: null };
-          s = trashCard(s, defCard, targetIdx);
-          s = trashCard(s, attackCard, attackerIdx);
-          return { ...s, phase: 'play', pending: { type: 'DISCARD', count: 1, cause: '防御コスト' } };
-        }
-        case 'super_defense': {
-          const ps = removeCardFromHand(s.players, targetIdx, defCard.instanceId);
-          s = { ...s, players: ps };
-          s = addLog(s, `${ps[targetIdx].name}「超防御」発動！手札2枚トラッシュが必要`, 'defense');
-          s = trashCard(s, defCard, targetIdx);
-          s = trashCard(s, attackCard, attackerIdx);
-          s = { ...s, pendingCard: null, phase: 'play' };
-          return { ...s, pending: { type: 'DISCARD', count: 2, cause: '超防御コスト' } };
-        }
-        case 'ultra_defense': {
-          const ps = removeCardFromHand(s.players, targetIdx, defCard.instanceId);
-          s = { ...s, players: ps };
-          s = addLog(s, `${ps[targetIdx].name}「超超防御」発動！攻撃無効→2枚引く→手札3枚トラッシュ`, 'defense');
-          const { drawn, deck, trash } = drawCards(s.deck, s.trash, 2);
-          const ps2 = ps.map((p, i) => i === targetIdx ? { ...p, hand: [...p.hand, ...drawn] } : p);
-          s = trashCard({ ...s, players: ps2, deck, trash }, defCard, targetIdx);
-          s = trashCard(s, attackCard, attackerIdx);
-          s = { ...s, pendingCard: null, phase: 'play' };
-          return { ...s, pending: { type: 'DISCARD', count: 3, cause: '超超防御コスト' } };
-        }
-        default:
-          return state;
-      }
+      const ps = removeCardFromHand(s.players, targetIdx, defCard.instanceId);
+      s = { ...s, players: ps };
+      s = addLog(s, `${ps[targetIdx].name}「防御」発動！手札1枚トラッシュが必要`, 'defense');
+      s = { ...s, pendingCard: null };
+      s = trashCard(s, defCard, targetIdx);
+      s = trashCard(s, attackCard, attackerIdx);
+      return { ...s, phase: 'play', pending: { type: 'DISCARD', count: 1, cause: '防御コスト' } };
     }
 
     case 'SKIP_DEFENSE': {
@@ -444,11 +401,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       s = applyAttack(s, attackerIdx, targetIdx, attackCard);
       s = trashCard(s, attackCard, attackerIdx);
       s = { ...s, pendingCard: null, pendingTargetIdx: null };
-      // 攻撃が解決後、アタッカーがまだプレイできるなら端末を戻す
-      if (canPlayMore(s)) {
-        return passDevice(s, attackerIdx, `${s.players[attackerIdx].name} のターン続行（残りプレイあり）`);
-      }
-      return { ...s, phase: 'end_turn' };
+      return { ...s, phase: 'play' };
     }
 
     // ===== インタラクション解決 =====
@@ -503,11 +456,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         s = trashCard(s, c, playerIdx);
       }
       s = addLog(s, `${state.players[playerIdx].name} が${discarded.length}枚トラッシュ（${pending.cause}）`, 'info');
-      // 防御コスト支払い後、アタッカーがまだプレイできるなら端末を戻す
-      if (canPlayMore(s)) {
-        return passDevice(s, state.currentPlayerIndex, `${state.players[state.currentPlayerIndex].name} のターン続行（残りプレイあり）`);
-      }
-      return { ...s, phase: 'end_turn' };
+      return { ...s, phase: 'play' };
     }
 
     case 'RESOLVE_PEEK_STEAL': {
@@ -651,7 +600,7 @@ function trashCard(state: GameState, card: CardInstance, _playerIdx: number): Ga
 }
 
 function canDefend(defKey: string, _attackKey: string): boolean {
-  return ['defense', 'super_defense', 'ultra_defense'].includes(defKey);
+  return defKey === 'defense';
 }
 
 function endGameByHappiness(state: GameState): GameState {

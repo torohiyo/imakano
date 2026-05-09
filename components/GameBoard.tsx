@@ -123,12 +123,13 @@ function CardZoomOverlay({ card, actionLabel, onAction, onClose }: {
 }
 
 // ── Turn End button ───────────────────────────────────────────────────────────
-function TurnEndButton({ onClick }: { onClick: () => void }) {
+function TurnEndButton({ onClick, compact = false }: { onClick: () => void; compact?: boolean }) {
+  const sz = compact ? 52 : 64;
   return (
     <button
       onClick={onClick}
       style={{
-        width: 64, height: 64, borderRadius: '50%',
+        width: sz, height: sz, borderRadius: '50%',
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
         flexShrink: 0,
@@ -138,8 +139,8 @@ function TurnEndButton({ onClick }: { onClick: () => void }) {
         transition: 'transform 0.1s',
       }}
     >
-      <span style={{ color: 'white', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', lineHeight: 1.3 }}>ターン</span>
-      <span style={{ color: 'white', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', lineHeight: 1.3 }}>終了</span>
+      <span style={{ color: 'white', fontSize: compact ? 9 : 10, fontWeight: 700, letterSpacing: '0.1em', lineHeight: 1.3 }}>ターン</span>
+      <span style={{ color: 'white', fontSize: compact ? 9 : 10, fontWeight: 700, letterSpacing: '0.1em', lineHeight: 1.3 }}>終了</span>
     </button>
   );
 }
@@ -151,14 +152,16 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
   const [afkSecondsLeft, setAfkSecondsLeft] = useState<number | null>(null);
   const [animEvents, setAnimEvents] = useState<AnimationEvent[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [boardHeight, setBoardHeight] = useState<number | null>(null);
+  const [boardDims, setBoardDims] = useState<{ w: number; h: number } | null>(null);
+  const [modalDelay, setModalDelay] = useState(false);
   const animSeq = useRef(0);
   const prevStateRef = useRef<GameState>(state);
   const initialTurnShown = useRef(false);
+  const prevPendingTypeRef = useRef<string | null>(null);
 
-  // window.innerHeight でブラウザUIを除いた正確な高さを取得（Chrome iOS対応）
+  // window.innerHeight/innerWidth でブラウザUIを除いた正確なサイズを取得（Chrome iOS対応）
   useEffect(() => {
-    const update = () => setBoardHeight(window.innerHeight);
+    const update = () => setBoardDims({ w: window.innerWidth, h: window.innerHeight });
     update();
     window.addEventListener('resize', update);
     window.addEventListener('orientationchange', update);
@@ -167,6 +170,23 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
       window.removeEventListener('orientationchange', update);
     };
   }, []);
+
+  const boardHeight = boardDims?.h ?? null;
+  const isLandscape = boardDims ? boardDims.w > boardDims.h : true;
+  const portraitSz = isLandscape ? 32 : 44;
+
+  // VIEW_SELECT/VIEW_SELECT_SPECIALS はカードプレイアニメ後にモーダルを表示
+  useEffect(() => {
+    const newType = state.pending?.type ?? null;
+    if (newType !== prevPendingTypeRef.current) {
+      prevPendingTypeRef.current = newType;
+      if (newType === 'VIEW_SELECT' || newType === 'VIEW_SELECT_SPECIALS') {
+        setModalDelay(true);
+        const t = setTimeout(() => setModalDelay(false), 1400);
+        return () => clearTimeout(t);
+      }
+    }
+  }, [state.pending?.type]);
 
   const n = state.players.length;
   const cur = state.currentPlayerIndex;
@@ -258,7 +278,6 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
     state.phase === 'defense' &&
     state.pending?.type === 'DEFENSE_REACTION' &&
     state.pending.targetIdx === myPlayerIdx;
-  const isSelectingTarget = state.pending?.type === 'SELECT_TARGET';
 
   const unplayableTypes = new Set<string>(['defense']);
   if (state.specialPlaysThisTurn >= MAX_SPECIAL_PLAYS) unplayableTypes.add('special');
@@ -284,12 +303,12 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
     && !unplayableIds.has(zoomedCard.instanceId);
   const isDefenseZoom = zoomedCard !== null
     && isDefenseTarget
-    && ['defense', 'super_defense', 'ultra_defense'].includes(zoomedCard.def.effectKey);
+    && zoomedCard.def.effectKey === 'defense';
 
-  // Hand unplayability: during defense, only defense cards are usable
+  // 防御フェーズ中は防御札のみ選択可能
   const handUnplayableIds: Set<string> = isDefenseTarget
     ? new Set(myPlayer.hand
-        .filter(c => !['defense', 'super_defense', 'ultra_defense'].includes(c.def.effectKey))
+        .filter(c => c.def.effectKey !== 'defense')
         .map(c => c.instanceId))
     : unplayableIds;
   const handUnplayableTypes: Set<string> = isDefenseTarget
@@ -381,7 +400,13 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
     if (canPlayZoomed) { actionLabel = 'プレイ'; onAction = () => dispatch({ type: 'PLAY_CARD', cardInstanceId: zoomedCard.instanceId }); }
     else if (isDefenseZoom) { actionLabel = '防御する'; onAction = () => dispatch({ type: 'DEFEND', cardInstanceId: zoomedCard.instanceId }); }
     overlayContent = <CardZoomOverlay card={zoomedCard} actionLabel={actionLabel} onAction={onAction} onClose={() => setZoomedCard(null)} />;
-  } else if (hasPending && state.pending?.type !== 'DEFENSE_REACTION' && state.pending?.type !== 'PASS_DEVICE' && state.pending?.type !== 'SELECT_TARGET') {
+  } else if (
+    hasPending &&
+    !modalDelay &&
+    state.pending?.type !== 'DEFENSE_REACTION' &&
+    state.pending?.type !== 'PASS_DEVICE' &&
+    state.pending?.type !== 'SELECT_TARGET'
+  ) {
     overlayContent = (
       <div style={{
         position: 'absolute', inset: 0, zIndex: 40,
@@ -422,7 +447,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           // boardHeight が null の初回レンダリング時は dvh にフォールバック
           height: boardHeight ? `${boardHeight}px` : '100dvh',
           display: 'grid',
-          gridTemplateRows: '16% 30% 14% 40%',
+          gridTemplateRows: isLandscape ? '13% 26% 13% 48%' : '16% 30% 14% 40%',
           overflow: 'hidden',
           position: 'relative',
           backgroundImage: 'url(/board-bg.png)',
@@ -457,17 +482,8 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           </div>
 
           {/* Opponent portrait */}
-          {opponentPlayer && (
-            northIdx !== undefined && northIdx >= 0 ? (
-              <button
-                style={{ flexShrink: 0, cursor: isSelectingTarget ? 'pointer' : 'default' }}
-                onClick={isSelectingTarget ? () => dispatch({ type: 'SELECT_TARGET', targetPlayerIdx: northIdx }) : undefined}
-              >
-                <Portrait imakanoId={opponentPlayer.imakano.id} width={44} attackRing={isSelectingTarget} />
-              </button>
-            ) : (
-              <Portrait imakanoId={opponentPlayer.imakano.id} width={44} />
-            )
+          {opponentPlayer && northIdx >= 0 && (
+            <Portrait imakanoId={opponentPlayer.imakano.id} width={portraitSz} />
           )}
 
           {/* Opponent info */}
@@ -498,22 +514,16 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           {(eastIdx >= 0 || westIdx >= 0) && (
             <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
               {westIdx >= 0 && (
-                <button
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, cursor: isSelectingTarget ? 'pointer' : 'default' }}
-                  onClick={isSelectingTarget ? () => dispatch({ type: 'SELECT_TARGET', targetPlayerIdx: westIdx }) : undefined}
-                >
-                  <Portrait imakanoId={state.players[westIdx].imakano.id} width={30} attackRing={isSelectingTarget} />
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 8 }}>W</span>
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                  <Portrait imakanoId={state.players[westIdx].imakano.id} width={26} />
+                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 7 }}>W</span>
+                </div>
               )}
               {eastIdx >= 0 && (
-                <button
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, cursor: isSelectingTarget ? 'pointer' : 'default' }}
-                  onClick={isSelectingTarget ? () => dispatch({ type: 'SELECT_TARGET', targetPlayerIdx: eastIdx }) : undefined}
-                >
-                  <Portrait imakanoId={state.players[eastIdx].imakano.id} width={30} attackRing={isSelectingTarget} />
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 8 }}>E</span>
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+                  <Portrait imakanoId={state.players[eastIdx].imakano.id} width={26} />
+                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 7 }}>E</span>
+                </div>
               )}
             </div>
           )}
@@ -585,17 +595,6 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
               </div>
             )}
           </div>
-
-          {/* SELECT_TARGET prompt */}
-          {isSelectingTarget && (
-            <div style={{
-              position: 'absolute', bottom: 6, left: '50%', transform: 'translateX(-50%)',
-              padding: '4px 14px', borderRadius: 10,
-              background: 'rgba(127,29,29,0.75)', border: '1px solid rgba(220,38,38,0.4)',
-            }}>
-              <p style={{ color: '#fca5a5', fontSize: 10, fontWeight: 700, whiteSpace: 'nowrap' }}>攻撃対象を選択</p>
-            </div>
-          )}
 
           {/* Processing states */}
           {(state.phase === 'draw' || state.phase === 'end_turn' || state.phase === 'resolve') && (
@@ -683,7 +682,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
                 disabled={!canUseSkill}
                 style={{ flexShrink: 0, cursor: canUseSkill ? 'pointer' : 'default' }}
               >
-                <Portrait imakanoId={myPlayer.imakano.id} width={44} skillRing={canUseSkill} skillLabel={canUseSkill} />
+                <Portrait imakanoId={myPlayer.imakano.id} width={portraitSz} skillRing={canUseSkill} skillLabel={canUseSkill} />
               </button>
 
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0 }}>
@@ -734,7 +733,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           overflow: 'hidden',
           boxSizing: 'border-box',
         }}>
-          <div style={{ paddingRight: isMyTurn && state.phase === 'play' && !hasPending ? 80 : 12, paddingLeft: 8 }}>
+          <div style={{ paddingRight: isMyTurn && state.phase === 'play' && !hasPending ? (isLandscape ? 68 : 80) : 12, paddingLeft: 8 }}>
             <HandView
               cards={myPlayer.hand}
               onTap={setZoomedCard}
@@ -755,7 +754,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
               right: 10,
               bottom: 'max(10px, env(safe-area-inset-bottom, 0px))',
             }}>
-              <TurnEndButton onClick={() => dispatch({ type: 'SKIP_PLAY' })} />
+              <TurnEndButton onClick={() => dispatch({ type: 'SKIP_PLAY' })} compact={isLandscape} />
             </div>
           )}
         </div>
