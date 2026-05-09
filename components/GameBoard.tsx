@@ -151,9 +151,22 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
   const [afkSecondsLeft, setAfkSecondsLeft] = useState<number | null>(null);
   const [animEvents, setAnimEvents] = useState<AnimationEvent[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [boardHeight, setBoardHeight] = useState<number | null>(null);
   const animSeq = useRef(0);
   const prevStateRef = useRef<GameState>(state);
   const initialTurnShown = useRef(false);
+
+  // window.innerHeight でブラウザUIを除いた正確な高さを取得（Chrome iOS対応）
+  useEffect(() => {
+    const update = () => setBoardHeight(window.innerHeight);
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('orientationchange', update);
+    };
+  }, []);
 
   const n = state.players.length;
   const cur = state.currentPlayerIndex;
@@ -372,9 +385,9 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
       <div
         style={{
           width: '100vw',
-          // 100dvh: アドレスバーを除いた動的ビューポート高さ。iOS/Androidの両方で正しく動作する。
-          // 100vh フォールバック（古いブラウザ用）はCSSクラス経由で当てる
-          height: '100dvh',
+          // JS で取得した window.innerHeight を優先（Chrome iOS等でdvhが不正確な場合の対策）
+          // boardHeight が null の初回レンダリング時は dvh にフォールバック
+          height: boardHeight ? `${boardHeight}px` : '100dvh',
           display: 'grid',
           gridTemplateRows: '16% 30% 14% 40%',
           overflow: 'hidden',
@@ -383,7 +396,6 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           boxSizing: 'border-box',
-          // SafeArea: iOSノッチ・ホームインジケーター分の左右余白
           paddingLeft: 'env(safe-area-inset-left, 0px)',
           paddingRight: 'env(safe-area-inset-right, 0px)',
         }}
