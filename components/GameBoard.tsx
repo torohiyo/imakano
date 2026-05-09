@@ -308,34 +308,67 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
   // ── Win screen ──
   if (state.phase === 'finished' && state.winner) {
     const wImakanoId = state.players.find(p => p.id === state.winner!.id)?.imakano.id ?? 'no_girlfriend';
+    const h = boardHeight ?? 0;
+    // 横持ちランドスケープ（高さ < 幅）かどうかで portrait サイズを切り替え
+    const isLandscape = typeof window !== 'undefined' && window.innerWidth > window.innerHeight;
+    const portraitW = isLandscape ? Math.min(88, h * 0.22) : 120;
+    const portraitH = Math.round(portraitW * 1.25);
     return (
       <div style={{
-        minHeight: '100dvh', display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center', padding: 24, gap: 24,
+        width: '100vw',
+        height: boardHeight ? `${boardHeight}px` : '100dvh',
+        display: 'flex',
+        flexDirection: isLandscape ? 'row' : 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: isLandscape ? 32 : 20,
+        padding: isLandscape ? '16px 40px' : '24px 24px',
+        paddingBottom: `max(${isLandscape ? 16 : 24}px, env(safe-area-inset-bottom, 0px))`,
+        boxSizing: 'border-box',
         background: 'linear-gradient(to bottom, #0a0010, #050008)',
+        overflow: 'hidden',
       }}>
-        <div style={{ width: 144, height: 176, borderRadius: 16, overflow: 'hidden', boxShadow: '0 0 40px rgba(234,179,8,0.4)', border: '2px solid rgba(234,179,8,0.6)' }}>
-          <img src={`/imakano/${wImakanoId}.png`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+        {/* イマカノ肖像 */}
+        <div style={{
+          width: portraitW, height: portraitH, flexShrink: 0,
+          borderRadius: 14, overflow: 'hidden',
+          boxShadow: '0 0 36px rgba(234,179,8,0.45)',
+          border: '2px solid rgba(234,179,8,0.6)',
+        }}>
+          <img src={`/imakano/${wImakanoId}.png`} alt=""
+            style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'top' }} />
         </div>
-        <div style={{ textAlign: 'center' }}>
-          <p style={{ color: 'rgba(234,179,8,0.7)', fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: 8 }}>Congratulations</p>
-          <h1 style={{ fontSize: 32, fontWeight: 700, color: 'white' }}>{state.winner.name}</h1>
-          <p style={{ color: 'rgba(255,255,255,0.35)', marginTop: 8, fontSize: 13 }}>「{state.winner.imakano.name}」との結婚</p>
+
+        {/* テキスト＋ボタン */}
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          gap: isLandscape ? 12 : 16,
+          width: isLandscape ? 'auto' : '100%',
+          maxWidth: 360,
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ color: 'rgba(234,179,8,0.7)', fontSize: 10, letterSpacing: '0.3em', textTransform: 'uppercase', marginBottom: 6 }}>
+              Congratulations
+            </p>
+            <h1 style={{ fontSize: isLandscape ? 26 : 30, fontWeight: 700, color: 'white', lineHeight: 1.2 }}>
+              {state.winner.name}
+            </h1>
+            <p style={{ color: 'rgba(255,255,255,0.35)', marginTop: 6, fontSize: 13 }}>
+              「{state.winner.imakano.name}」との結婚
+            </p>
+          </div>
+          <button
+            onClick={() => (location.href = '/')}
+            style={{
+              width: isLandscape ? 200 : '100%', padding: '14px 0', borderRadius: 12,
+              fontWeight: 700, color: 'white', letterSpacing: '0.05em', fontSize: 15,
+              background: 'linear-gradient(135deg, #b45309, #d97706)',
+              boxShadow: '0 0 20px rgba(217,119,6,0.4)',
+            }}
+          >
+            最初に戻る
+          </button>
         </div>
-        <div style={{ width: '100%', maxWidth: 360 }}>
-          <GameLog log={state.log} maxItems={15} />
-        </div>
-        <button
-          onClick={() => (location.href = '/')}
-          style={{
-            width: '100%', maxWidth: 360, padding: '16px 0', borderRadius: 12,
-            fontWeight: 700, color: 'white', letterSpacing: '0.05em',
-            background: 'linear-gradient(135deg, #b45309, #d97706)',
-            boxShadow: '0 0 24px rgba(217,119,6,0.4)',
-          }}
-        >
-          最初に戻る
-        </button>
       </div>
     );
   }
