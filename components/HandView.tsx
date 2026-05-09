@@ -34,7 +34,7 @@ export default function HandView({ cards, onTap, onDropPlay, unplayableTypes, un
     const onEnd = (e: TouchEvent) => {
       const t = e.changedTouches[0];
       const movedUpEnough = touchStartY.current - t.clientY > 60;
-      const inPlayZone = t.clientY < window.innerHeight * 0.73;
+      const inPlayZone = t.clientY < window.innerHeight * 0.58;
       if (movedUpEnough && inPlayZone && drag) {
         onDropPlay?.(drag.card);
       }
