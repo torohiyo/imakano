@@ -12,6 +12,7 @@ export type AnimEventPayload =
   | { type: 'WIN_MARRIAGE';     playerName: string; imakanoName: string }
   | { type: 'YOUR_TURN' }
   | { type: 'OPPONENT_TURN' }
+  | { type: 'DAMAGE_FLASH' }
   | { type: 'SKILL_CUTIN'; heroineType: HeroineType; heroineName: string; skillName: string };
 
 export type AnimationEvent = AnimEventPayload & { id: number };

@@ -156,8 +156,12 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
     state.players.forEach((p, i) => {
       const prevHp = prev.players[i]?.happiness ?? p.happiness;
       const delta = p.happiness - prevHp;
-      if (delta < 0) pushAnim({ type: 'DAMAGE', targetPosition: playerPos(i), amount: -delta });
-      else if (delta > 0) pushAnim({ type: 'HEAL', targetPosition: playerPos(i), amount: delta });
+      if (delta < 0) {
+        pushAnim({ type: 'DAMAGE', targetPosition: playerPos(i), amount: -delta });
+        if (-delta >= 2) pushAnim({ type: 'DAMAGE_FLASH' });
+      } else if (delta > 0) {
+        pushAnim({ type: 'HEAL', targetPosition: playerPos(i), amount: delta });
+      }
     });
 
     // Block: defense reaction resolved and target's hp didn't drop

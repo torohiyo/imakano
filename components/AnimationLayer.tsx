@@ -286,15 +286,10 @@ export default function AnimationLayer({ events, onDone }: Props) {
           const done = () => onDone(ev.id);
           if (ev.type === 'PLAY_CARD_REVEAL')
             return <CardRevealAnim key={key} event={ev} onDone={done} />;
-          if (ev.type === 'DAMAGE') {
-            const needsFlash = ev.amount >= 2;
-            return (
-              <>
-                <FloatingNumber key={key} event={ev} onDone={done} />
-                {needsFlash && <ScreenFlashRed key={`flash-${key}`} onDone={() => {}} />}
-              </>
-            );
-          }
+          if (ev.type === 'DAMAGE')
+            return <FloatingNumber key={key} event={ev} onDone={done} />;
+          if (ev.type === 'DAMAGE_FLASH')
+            return <ScreenFlashRed key={key} onDone={done} />;
           if (ev.type === 'HEAL')
             return <FloatingNumber key={key} event={ev} onDone={done} />;
           if (ev.type === 'BLOCK')
