@@ -195,6 +195,77 @@ function ScreenFlashRed({ onDone }: { onDone: () => void }) {
   );
 }
 
+// ── Turn Banner ──────────────────────────────────────────────────────────────
+function TurnBanner({ isYours, onDone }: { isYours: boolean; onDone: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 1800);
+    return () => clearTimeout(t);
+  }, [onDone]);
+
+  const logoSrc = isYours ? '/icons/your-turn.png' : '/icons/opponent-turn.png';
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9, y: -20 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+      style={{
+        position: 'fixed',
+        left: '50%', top: '50%',
+        transform: 'translate(-50%, -50%)',
+        zIndex: 1050, pointerEvents: 'none',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0,
+      }}
+    >
+      {/* Glow backdrop */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 0.5, 0.3] }}
+        transition={{ duration: 0.6 }}
+        style={{
+          position: 'absolute', inset: -40,
+          borderRadius: 32,
+          background: isYours
+            ? 'radial-gradient(circle, rgba(56,189,248,0.35), transparent 70%)'
+            : 'radial-gradient(circle, rgba(248,113,113,0.35), transparent 70%)',
+          filter: 'blur(12px)',
+        }}
+      />
+      {/* Logo image */}
+      <motion.img
+        src={logoSrc}
+        alt={isYours ? 'Your Turn' : "Opponent's Turn"}
+        draggable={false}
+        animate={{ opacity: [0, 1, 1, 0] }}
+        transition={{ duration: 1.6, times: [0, 0.15, 0.75, 1] }}
+        style={{ width: 'min(72vw, 340px)', objectFit: 'contain', position: 'relative' }}
+        onError={e => {
+          // Fallback text if image not found
+          (e.target as HTMLImageElement).style.display = 'none';
+        }}
+      />
+      {/* Fallback text (shown if image fails) */}
+      <motion.p
+        animate={{ opacity: [0, 1, 1, 0] }}
+        transition={{ duration: 1.6, times: [0, 0.15, 0.75, 1] }}
+        style={{
+          position: 'relative',
+          color: isYours ? '#7dd3fc' : '#fca5a5',
+          fontWeight: 800, fontSize: 'clamp(22px, 6vw, 36px)',
+          letterSpacing: '0.08em',
+          textShadow: isYours
+            ? '0 0 20px rgba(56,189,248,0.8)'
+            : '0 0 20px rgba(248,113,113,0.8)',
+          marginTop: 4,
+        }}
+      >
+        {isYours ? 'Your Turn' : "Opponent's Turn"}
+      </motion.p>
+    </motion.div>
+  );
+}
+
 // ── Main Layer ───────────────────────────────────────────────────────────────
 interface Props {
   events: AnimationEvent[];
@@ -229,6 +300,10 @@ export default function AnimationLayer({ events, onDone }: Props) {
             return <BlockAnim key={key} event={ev} onDone={done} />;
           if (ev.type === 'WIN_MARRIAGE')
             return <WinFlash key={key} event={ev} onDone={done} />;
+          if (ev.type === 'YOUR_TURN')
+            return <TurnBanner key={key} isYours={true} onDone={done} />;
+          if (ev.type === 'OPPONENT_TURN')
+            return <TurnBanner key={key} isYours={false} onDone={done} />;
           return null;
         })}
       </AnimatePresence>

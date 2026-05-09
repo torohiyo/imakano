@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { GameState, CardInstance } from '@/lib/types';
-import { GameAction } from '@/lib/gameEngine';
+import { GameAction, skillConditionMet } from '@/lib/gameEngine';
 import { MAX_SPECIAL_PLAYS, MAX_ATTACK_PLAYS, MARRIAGE_VICTORY_THRESHOLD } from '@/lib/constants';
 import PlayerPanel from './PlayerPanel';
 import HandView from './HandView';
@@ -93,8 +93,10 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
   const [showLog, setShowLog] = useState(false);
   const [afkSecondsLeft, setAfkSecondsLeft] = useState<number | null>(null);
   const [animEvents, setAnimEvents] = useState<AnimationEvent[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
   const animSeq = useRef(0);
   const prevStateRef = useRef<GameState>(state);
+  const initialTurnShown = useRef(false);
 
   const n = state.players.length;
   const cur = state.currentPlayerIndex;
@@ -169,6 +171,11 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
       }
     }
 
+    // Turn change
+    if (state.currentPlayerIndex !== prev.currentPlayerIndex && state.phase !== 'finished') {
+      pushAnim(state.currentPlayerIndex === myPlayerIdx ? { type: 'YOUR_TURN' } : { type: 'OPPONENT_TURN' });
+    }
+
     // Win
     if (state.phase === 'finished' && prev.phase !== 'finished' && state.winner) {
       pushAnim({ type: 'WIN_MARRIAGE', playerName: state.winner.name, imakanoName: state.winner.imakano.name });
@@ -176,6 +183,15 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
 
     prevStateRef.current = state;
   }, [state]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Show turn banner on first playable phase
+  useEffect(() => {
+    if (initialTurnShown.current) return;
+    if (state.phase === 'play' || state.phase === 'skill' || state.phase === 'draw') {
+      initialTurnShown.current = true;
+      pushAnim(state.currentPlayerIndex === myPlayerIdx ? { type: 'YOUR_TURN' } : { type: 'OPPONENT_TURN' });
+    }
+  }, [state.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasPending = state.pending !== null;
   const isDefenseTarget =
@@ -207,7 +223,8 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
     && myPlayer.imakano.skillKey
     && !myPlayer.skillUsedThisTurn
     && (state.phase === 'skill' || state.phase === 'play')
-    && !hasPending;
+    && !hasPending
+    && skillConditionMet(state, myPlayerIdx);
 
   const isSelectingTarget = state.pending?.type === 'SELECT_TARGET';
 
@@ -363,16 +380,34 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
               <ScrollIcon className="w-4 h-4 text-white/50" />
             </button>
 
-            {/* Field decoration + last played card */}
-            <div className="relative flex items-center justify-center">
+            {/* Field decoration + last played card (also DnD drop zone) */}
+            <div
+              className="relative flex items-center justify-center"
+              onDragOver={e => { e.preventDefault(); if (isMyTurn && state.phase === 'play' && !hasPending) setIsDragOver(true); }}
+              onDragLeave={() => setIsDragOver(false)}
+              onDrop={e => {
+                e.preventDefault();
+                setIsDragOver(false);
+                const instanceId = e.dataTransfer.getData('cardInstanceId');
+                if (instanceId && isMyTurn && state.phase === 'play' && !hasPending) {
+                  dispatch({ type: 'PLAY_CARD', cardInstanceId: instanceId });
+                }
+              }}
+              style={{ padding: 16 }}
+            >
               <img src="/field-center.png" alt="" className="absolute w-48 h-32 object-contain pointer-events-none" style={{ opacity: 0.18, mixBlendMode: 'screen' }} draggable={false} />
+              {/* Drop target glow */}
+              {isDragOver && (
+                <div className="absolute inset-0 rounded-2xl pointer-events-none"
+                  style={{ background: 'rgba(56,189,248,0.15)', border: '2px solid rgba(56,189,248,0.5)', boxShadow: '0 0 24px rgba(56,189,248,0.3)' }} />
+              )}
               {state.lastPlayedCard ? (
                 <button className="relative z-10" onClick={() => setZoomedCard(state.lastPlayedCard!)}>
                   <CardComp card={state.lastPlayedCard} size="md" />
                 </button>
               ) : (
                 <div className="relative z-10 rounded-xl flex items-center justify-center"
-                  style={{ width: 120, height: 168, border: '2px dashed rgba(255,255,255,0.1)' }} />
+                  style={{ width: 120, height: 168, border: `2px dashed ${isDragOver ? 'rgba(56,189,248,0.6)' : 'rgba(255,255,255,0.1)'}` }} />
               )}
             </div>
 
@@ -392,11 +427,17 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
             )}
             {state.phase === 'defense' && !isDefenseTarget && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                <div className="px-6 py-4 rounded-2xl text-center"
-                  style={{ background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(220,38,38,0.3)' }}>
-                  <p className="text-red-400 text-sm font-bold tracking-wide">攻撃中</p>
-                  <p className="text-white/30 text-xs mt-1 animate-pulse">
-                    {state.players[state.pending?.type === 'DEFENSE_REACTION' ? state.pending.targetIdx : cur]?.name} が応答中
+                <div className="px-6 py-5 rounded-2xl text-center"
+                  style={{ background: 'rgba(0,0,0,0.80)', border: '1px solid rgba(220,38,38,0.3)', boxShadow: '0 0 30px rgba(220,38,38,0.15)' }}>
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                    <p className="text-red-400 text-xs font-bold tracking-[0.2em] uppercase">Waiting for Opponent</p>
+                    <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                  </div>
+                  <p className="text-white/40 text-xs">
+                    {state.pending?.type === 'DEFENSE_REACTION'
+                      ? state.players[state.pending.targetIdx]?.name
+                      : '相手'} が防御を選択中
                   </p>
                 </div>
               </div>
@@ -436,7 +477,17 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           {isMyTurn && state.phase === 'play' && !hasPending && (
             <div className="relative px-4 pt-1 pb-4">
               <div style={{ paddingRight: 88 }}>
-                <HandView cards={myPlayer.hand} onTap={setZoomedCard} unplayableTypes={unplayableTypes} unplayableIds={unplayableIds} />
+                <HandView
+                  cards={myPlayer.hand}
+                  onTap={setZoomedCard}
+                  onDropPlay={card => {
+                    if (!unplayableTypes.has(card.def.type) && !unplayableIds.has(card.instanceId)) {
+                      dispatch({ type: 'PLAY_CARD', cardInstanceId: card.instanceId });
+                    }
+                  }}
+                  unplayableTypes={unplayableTypes}
+                  unplayableIds={unplayableIds}
+                />
               </div>
               {/* Turn end — fixed to bottom-right, never pushed off screen */}
               <div className="absolute right-4 bottom-4">

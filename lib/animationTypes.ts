@@ -7,6 +7,8 @@ export type AnimEventPayload =
   | { type: 'DAMAGE';           targetPosition: AnimPosition; amount: number }
   | { type: 'HEAL';             targetPosition: AnimPosition; amount: number }
   | { type: 'BLOCK';            targetPosition: AnimPosition }
-  | { type: 'WIN_MARRIAGE';     playerName: string; imakanoName: string };
+  | { type: 'WIN_MARRIAGE';     playerName: string; imakanoName: string }
+  | { type: 'YOUR_TURN' }
+  | { type: 'OPPONENT_TURN' };
 
 export type AnimationEvent = AnimEventPayload & { id: number };

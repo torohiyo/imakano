@@ -281,8 +281,20 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         case 'attack':
         case 'super_attack':
         case 'ultra_attack':
-        case 'spy':
+        case 'spy': {
+          // 1v1: auto-select the only opponent
+          if (state.players.length === 2) {
+            const targetIdx = (cur + 1) % 2;
+            const target = s.players[targetIdx];
+            if (card.def.effectKey === 'spy') {
+              const s2 = addLog(s, `${s.players[cur].name}「スパイ」: ${target.name} の手札を確認`, 'skill');
+              return { ...s2, pendingTargetIdx: targetIdx, pending: { type: 'PEEK_TRASH', targetIdx, peekedCards: target.hand } };
+            }
+            const s2 = addLog(s, `${s.players[cur].name} が ${target.name} に「${card.def.name}」を使用！`, 'attack');
+            return { ...s2, phase: 'defense', pendingTargetIdx: targetIdx, pending: { type: 'DEFENSE_REACTION', attackerIdx: cur, targetIdx, attackCard: card } };
+          }
           return { ...s, pending: { type: 'SELECT_TARGET', source: 'card', cardInstanceId: action.cardInstanceId } };
+        }
 
         // ---- 幸せゲージ増加系 ----
         case 'ring': return resolveHappinessCard(s, cur, 4);
@@ -654,4 +666,22 @@ function endGame(state: GameState, winner: PlayerState): GameState {
   const players = state.players.map(p => p.id === winner.id ? { ...p, isWinner: true } : p);
   const s: GameState = addLog({ ...state, players }, `🎊 ${winner.name} が婚姻届を提出！結婚勝利！`, 'win');
   return { ...s, phase: 'finished', winner };
+}
+
+// ===== スキル発動条件チェック（UI用） =====
+export function skillConditionMet(state: GameState, playerIdx: number): boolean {
+  const player = state.players[playerIdx];
+  const sk = player.imakano.skillKey;
+  if (!sk) return false;
+  switch (sk) {
+    case 'skill_musician':
+    case 'skill_otaku':
+      return state.players.some((p, i) => i !== playerIdx && p.happiness === player.happiness);
+    case 'skill_jirai': {
+      const rightIdx = (playerIdx + 1) % state.players.length;
+      return player.happiness > state.players[rightIdx].happiness;
+    }
+    default:
+      return true;
+  }
 }
