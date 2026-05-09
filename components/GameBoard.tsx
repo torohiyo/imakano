@@ -10,7 +10,7 @@ import CardComp from './CardComp';
 import InteractionModal from './InteractionModal';
 import GameLog from './GameLog';
 import AnimationLayer from './AnimationLayer';
-import { AnimationEvent, AnimEventPayload, AnimPosition } from '@/lib/animationTypes';
+import { AnimationEvent, AnimEventPayload, AnimPosition, HeroineType } from '@/lib/animationTypes';
 
 interface Props {
   state: GameState;
@@ -470,7 +470,16 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
             player={myPlayer}
             isCurrent={isMyTurn}
             variant="full"
-            onPortraitTap={canUseSkill ? () => dispatch({ type: 'USE_SKILL' }) : undefined}
+            onPortraitTap={canUseSkill ? () => {
+              // Fire cut-in first, then dispatch skill after animation
+              pushAnim({
+                type: 'SKILL_CUTIN',
+                heroineType: myPlayer.imakano.id as HeroineType,
+                heroineName: myPlayer.imakano.name,
+                skillName: myPlayer.imakano.skillName ?? 'スキル',
+              });
+              setTimeout(() => dispatch({ type: 'USE_SKILL' }), 1000);
+            } : undefined}
           />
 
           {/* Play phase */}

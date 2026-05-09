@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useAnimate, AnimatePresence, motion } from 'framer-motion';
 import { AnimationEvent, AnimPosition } from '@/lib/animationTypes';
 import CardComp from './CardComp';
+import SkillCutIn from './SkillCutIn';
 
 const CARD_TYPE_BURST: Record<string, string> = {
   attack:  'radial-gradient(circle, rgba(255,40,40,0.65), transparent 65%)',
@@ -304,6 +305,16 @@ export default function AnimationLayer({ events, onDone }: Props) {
             return <TurnBanner key={key} isYours={true} onDone={done} />;
           if (ev.type === 'OPPONENT_TURN')
             return <TurnBanner key={key} isYours={false} onDone={done} />;
+          if (ev.type === 'SKILL_CUTIN')
+            return (
+              <SkillCutIn
+                key={key}
+                heroineType={ev.heroineType}
+                heroineName={ev.heroineName}
+                skillName={ev.skillName}
+                onComplete={done}
+              />
+            );
           return null;
         })}
       </AnimatePresence>

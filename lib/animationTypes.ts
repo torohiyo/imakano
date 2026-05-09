@@ -2,6 +2,8 @@ import { CardInstance } from './types';
 
 export type AnimPosition = 'south' | 'north' | 'east' | 'west';
 
+export type HeroineType = 'musician' | 'yankee' | 'otaku' | 'jirai';
+
 export type AnimEventPayload =
   | { type: 'PLAY_CARD_REVEAL'; card: CardInstance; fromPosition: AnimPosition }
   | { type: 'DAMAGE';           targetPosition: AnimPosition; amount: number }
@@ -9,6 +11,7 @@ export type AnimEventPayload =
   | { type: 'BLOCK';            targetPosition: AnimPosition }
   | { type: 'WIN_MARRIAGE';     playerName: string; imakanoName: string }
   | { type: 'YOUR_TURN' }
-  | { type: 'OPPONENT_TURN' };
+  | { type: 'OPPONENT_TURN' }
+  | { type: 'SKILL_CUTIN'; heroineType: HeroineType; heroineName: string; skillName: string };
 
 export type AnimationEvent = AnimEventPayload & { id: number };
