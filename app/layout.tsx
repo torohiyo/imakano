@@ -15,6 +15,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "イマジナリー彼女ポーカー",
   description: "ローカル同端末対戦カードゲーム",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
