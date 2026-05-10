@@ -158,6 +158,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
   const prevStateRef = useRef<GameState>(state);
   const initialTurnShown = useRef(false);
   const prevPendingTypeRef = useRef<string | null>(null);
+  const prevPhaseRef = useRef<string>(state.phase);
 
   // window.innerHeight/innerWidth でブラウザUIを除いた正確なサイズを取得（Chrome iOS対応）
   useEffect(() => {
@@ -174,6 +175,14 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
   const boardHeight = boardDims?.h ?? null;
   const isLandscape = boardDims ? boardDims.w > boardDims.h : true;
   const portraitSz = isLandscape ? 32 : 44;
+
+  // defenseフェーズを抜けたときズームを強制クリア（DISCARDモーダルが埋もれるのを防ぐ）
+  useEffect(() => {
+    if (prevPhaseRef.current === 'defense' && state.phase !== 'defense') {
+      setZoomedCard(null);
+    }
+    prevPhaseRef.current = state.phase;
+  }, [state.phase]);
 
   // VIEW_SELECT/VIEW_SELECT_SPECIALS はカードプレイアニメ後にモーダルを表示
   useEffect(() => {
@@ -393,20 +402,35 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
   }
 
   // ── Overlay (zoom or interaction modal) ──
+  // DISCARDモーダルはズームより優先（防御後にズームが残った場合でも確実に表示）
+  const showInteractionModal =
+    hasPending &&
+    !modalDelay &&
+    state.pending?.type !== 'DEFENSE_REACTION' &&
+    state.pending?.type !== 'PASS_DEVICE' &&
+    state.pending?.type !== 'SELECT_TARGET';
+
   let overlayContent: React.ReactNode = null;
-  if (zoomedCard) {
+  if (showInteractionModal && state.pending?.type === 'DISCARD') {
+    overlayContent = (
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 50,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', padding: 16,
+        background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
+      }}>
+        <div style={{ width: '100%', maxWidth: 480 }}>
+          <InteractionModal state={state} dispatch={dispatch} />
+        </div>
+      </div>
+    );
+  } else if (zoomedCard) {
     let actionLabel: string | undefined;
     let onAction: (() => void) | undefined;
     if (canPlayZoomed) { actionLabel = 'プレイ'; onAction = () => dispatch({ type: 'PLAY_CARD', cardInstanceId: zoomedCard.instanceId }); }
     else if (isDefenseZoom) { actionLabel = '防御する'; onAction = () => dispatch({ type: 'DEFEND', cardInstanceId: zoomedCard.instanceId }); }
     overlayContent = <CardZoomOverlay card={zoomedCard} actionLabel={actionLabel} onAction={onAction} onClose={() => setZoomedCard(null)} />;
-  } else if (
-    hasPending &&
-    !modalDelay &&
-    state.pending?.type !== 'DEFENSE_REACTION' &&
-    state.pending?.type !== 'PASS_DEVICE' &&
-    state.pending?.type !== 'SELECT_TARGET'
-  ) {
+  } else if (showInteractionModal) {
     overlayContent = (
       <div style={{
         position: 'absolute', inset: 0, zIndex: 40,
