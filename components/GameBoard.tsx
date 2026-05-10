@@ -453,7 +453,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           // boardHeight が null の初回レンダリング時は dvh にフォールバック
           height: boardHeight ? `${boardHeight}px` : '100dvh',
           display: 'grid',
-          gridTemplateRows: isLandscape ? '25% 12% 25% 38%' : '18% 26% 18% 38%',
+          gridTemplateRows: isLandscape ? '25% 12% 25% 38%' : '22% 14% 22% 42%',
           overflow: 'hidden',
           position: 'relative',
           backgroundImage: 'url(/board-bg.png)',
