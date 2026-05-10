@@ -469,14 +469,13 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
         <div style={{
           position: 'relative',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          paddingTop: 'env(safe-area-inset-top, 0px)',
           background: 'linear-gradient(to bottom, rgba(0,0,0,0.72), rgba(0,0,0,0.38))',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
-          boxSizing: 'border-box', overflow: 'hidden',
+          overflow: 'hidden',
         }}>
           {/* Character image + HP — centered as a unit */}
           {opponentPlayer && (
-            <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, alignSelf: 'stretch' }}>
               <img
                 src={`/frames/${opponentPlayer.imakano.id}.png`}
                 alt="" draggable={false}
@@ -486,17 +485,17 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
                   pointerEvents: 'none',
                 }}
               />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 'clamp(28px, 7vw, 46px)', fontWeight: 800, color: opponentHpColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 20px ${opponentHpColor}70` }}>
                   {opponentPlayer.happiness}
                 </span>
                 <span style={{ color: '#f9a8d4', fontSize: 'clamp(18px, 4.5vw, 28px)', lineHeight: 1 }}>♥</span>
               </div>
-            </>
+            </div>
           )}
 
           {/* Deck/Grave - top-left */}
-          <div style={{ position: 'absolute', top: 6, left: 10, display: 'flex', gap: 4 }}>
+          <div style={{ position: 'absolute', top: 'max(6px, env(safe-area-inset-top, 6px))', left: 10, display: 'flex', gap: 4 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 5px', borderRadius: 5, background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.07)' }}>
               <DeckIcon /><span style={{ color: 'white', fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{state.deck.length}</span>
             </div>
@@ -509,7 +508,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           <button
             onClick={() => setShowLog(v => !v)}
             style={{
-              position: 'absolute', top: 6, right: 10,
+              position: 'absolute', top: 'max(6px, env(safe-area-inset-top, 6px))', right: 10,
               width: 30, height: 30, borderRadius: 8,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: showLog ? 'rgba(56,189,248,0.15)' : 'rgba(0,0,0,0.5)',
@@ -644,39 +643,41 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           ) : (
             <>
               {/* Character image + HP — centered as a unit */}
-              <button
-                onClick={canUseSkill ? () => {
-                  pushAnim({
-                    type: 'SKILL_CUTIN',
-                    heroineType: myPlayer.imakano.id as HeroineType,
-                    heroineName: myPlayer.imakano.name,
-                    skillName: myPlayer.imakano.skillName ?? 'スキル',
-                    onActivate: () => dispatch({ type: 'USE_SKILL' }),
-                  });
-                } : undefined}
-                disabled={!canUseSkill}
-                style={{ height: '82%', display: 'flex', alignItems: 'center', position: 'relative', cursor: canUseSkill ? 'pointer' : 'default' }}
-              >
-                <img
-                  src={`/frames/${myPlayer.imakano.id}.png`}
-                  alt="" draggable={false}
-                  style={{
-                    height: '100%', width: 'auto', objectFit: 'contain',
-                    filter: canUseSkill
-                      ? 'drop-shadow(0 0 16px rgba(250,200,50,0.85)) brightness(1.08)'
-                      : 'drop-shadow(0 2px 16px rgba(0,0,0,0.75))',
-                    transition: 'filter 0.3s',
-                  }}
-                />
-                {canUseSkill && (
-                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', borderRadius: 6, boxShadow: '0 0 0 2px rgba(250,200,50,0.7), 0 0 24px rgba(250,200,50,0.35)' }} />
-                )}
-              </button>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 14 }}>
-                <span style={{ fontSize: 'clamp(28px, 7vw, 46px)', fontWeight: 800, color: myHpColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 20px ${myHpColor}70` }}>
-                  {myPlayer.happiness}
-                </span>
-                <img src="/icons/icon-heart.png" alt="♥" style={{ width: 'clamp(18px, 4.5vw, 28px)', height: 'clamp(18px, 4.5vw, 28px)' }} draggable={false} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, alignSelf: 'stretch' }}>
+                <button
+                  onClick={canUseSkill ? () => {
+                    pushAnim({
+                      type: 'SKILL_CUTIN',
+                      heroineType: myPlayer.imakano.id as HeroineType,
+                      heroineName: myPlayer.imakano.name,
+                      skillName: myPlayer.imakano.skillName ?? 'スキル',
+                      onActivate: () => dispatch({ type: 'USE_SKILL' }),
+                    });
+                  } : undefined}
+                  disabled={!canUseSkill}
+                  style={{ height: '82%', display: 'flex', alignItems: 'center', position: 'relative', cursor: canUseSkill ? 'pointer' : 'default' }}
+                >
+                  <img
+                    src={`/frames/${myPlayer.imakano.id}.png`}
+                    alt="" draggable={false}
+                    style={{
+                      height: '100%', width: 'auto', objectFit: 'contain',
+                      filter: canUseSkill
+                        ? 'drop-shadow(0 0 16px rgba(250,200,50,0.85)) brightness(1.08)'
+                        : 'drop-shadow(0 2px 16px rgba(0,0,0,0.75))',
+                      transition: 'filter 0.3s',
+                    }}
+                  />
+                  {canUseSkill && (
+                    <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', borderRadius: 6, boxShadow: '0 0 0 2px rgba(250,200,50,0.7), 0 0 24px rgba(250,200,50,0.35)' }} />
+                  )}
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 'clamp(28px, 7vw, 46px)', fontWeight: 800, color: myHpColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 20px ${myHpColor}70` }}>
+                    {myPlayer.happiness}
+                  </span>
+                  <img src="/icons/icon-heart.png" alt="♥" style={{ width: 'clamp(18px, 4.5vw, 28px)', height: 'clamp(18px, 4.5vw, 28px)' }} draggable={false} />
+                </div>
               </div>
 
               {/* Not my turn - top-right */}
