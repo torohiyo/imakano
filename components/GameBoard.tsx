@@ -380,27 +380,39 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
         </div>
 
         {/* ════════════ ③ 中央帯  y=872 h=175 ════════════ */}
-        <div style={{ position: 'absolute', left: 0, top: 872, width: CW, height: 175, borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', padding: '0 32px', gap: 20 }}>
-          {/* 山札 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(20,20,40,0.75)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '16px 24px' }}>
-            <DeckIcon /><span style={{ color: 'white', fontSize: 36, fontWeight: 800 }}>{state.deck.length}</span>
-          </div>
-          {/* 捨て札 */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(20,20,40,0.75)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '16px 24px' }}>
-            <GraveIcon /><span style={{ color: 'white', fontSize: 36, fontWeight: 800 }}>{state.trash.length}</span>
-          </div>
-          {/* ターン情報 */}
-          <div style={{ flex: 1, textAlign: 'center' }}>
-            <p style={{ color: 'rgba(255,255,255,0.22)', fontSize: 28, letterSpacing: '0.15em' }}>
-              {isMyTurn ? '自分のターン' : '相手のターン'}
-            </p>
-          </div>
-          {/* 防御待ち表示 */}
-          {state.phase === 'defense' && !isDefenseTarget && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#f87171' }} className="animate-pulse" />
-              <p style={{ color: '#f87171', fontSize: 24, fontWeight: 700 }}>防御選択中</p>
-            </div>
+        <div style={{ position: 'absolute', left: 0, top: 872, width: CW, height: 175, borderTop: '1px solid rgba(255,255,255,0.06)', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', padding: '0 32px', gap: 20, background: isDefenseTarget ? 'rgba(220,38,38,0.08)' : 'transparent' }}>
+          {isDefenseTarget && state.pending?.type === 'DEFENSE_REACTION' ? (
+            /* 防御モード：攻撃情報 + 防御しないボタン */
+            <>
+              <span style={{ fontSize: 56, flexShrink: 0 }}>⚔️</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ color: '#fca5a5', fontSize: 32, fontWeight: 700, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {state.players[state.pending.attackerIdx].name}「{state.pending.attackCard.def.name}」
+                </p>
+                <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 24, marginTop: 6 }}>防御カードをタップ</p>
+              </div>
+              <button
+                onClick={() => dispatch({ type: 'SKIP_DEFENSE' })}
+                style={{ flexShrink: 0, padding: '20px 32px', borderRadius: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.55)', fontSize: 28, fontWeight: 600 }}
+              >
+                防御しない
+              </button>
+            </>
+          ) : (
+            /* 通常モード */
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(20,20,40,0.75)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '16px 24px' }}>
+                <DeckIcon /><span style={{ color: 'white', fontSize: 36, fontWeight: 800 }}>{state.deck.length}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(20,20,40,0.75)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '16px 24px' }}>
+                <GraveIcon /><span style={{ color: 'white', fontSize: 36, fontWeight: 800 }}>{state.trash.length}</span>
+              </div>
+              <div style={{ flex: 1, textAlign: 'center' }}>
+                <p style={{ color: 'rgba(255,255,255,0.22)', fontSize: 28, letterSpacing: '0.15em' }}>
+                  {state.phase === 'defense' ? '防御選択中…' : isMyTurn ? '自分のターン' : '相手のターン'}
+                </p>
+              </div>
+            </>
           )}
         </div>
 
@@ -417,22 +429,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
         >
           {isDragOver && <div style={{ position: 'absolute', inset: 0, background: 'rgba(56,189,248,0.07)', border: '2px solid rgba(56,189,248,0.35)', pointerEvents: 'none' }} />}
 
-          {isDefenseTarget && state.pending?.type === 'DEFENSE_REACTION' ? (
-            /* 防御モード：手札エリアに防御情報を表示 */
-            <div style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16 }}>
-              <span style={{ fontSize: 48, flexShrink: 0 }}>⚔️</span>
-              <div style={{ flex: 1 }}>
-                <p style={{ color: '#fca5a5', fontSize: 30, fontWeight: 700, lineHeight: 1.3 }}>
-                  {state.players[state.pending.attackerIdx].name}「{state.pending.attackCard.def.name}」
-                </p>
-                <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 24, marginTop: 6 }}>防御カードをタップして選択</p>
-              </div>
-              <button onClick={() => dispatch({ type: 'SKIP_DEFENSE' })} style={{ flexShrink: 0, padding: '16px 28px', borderRadius: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.55)', fontSize: 26, fontWeight: 600 }}>
-                防御しない
-              </button>
-            </div>
-          ) : (
-            <HandView
+          <HandView
               cards={myPlayer.hand}
               onTap={setZoomedCard}
               onDropPlay={isMyTurn && state.phase === 'play' && !hasPending ? card => {
@@ -443,7 +440,6 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
               unplayableIds={handUnplayableIds}
               size="xl"
             />
-          )}
         </div>
 
         {/* ════════════ ⑤ 自分ゾーン  y=1397 h=402 ════════════ */}
