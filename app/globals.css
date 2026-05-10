@@ -49,12 +49,6 @@ body {
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Portrait orientation lock: show rotate overlay on portrait mobile */
-@media screen and (orientation: portrait) and (max-width: 1024px) {
-  .portrait-rotate-overlay {
-    display: flex !important;
-  }
-}
 
 /* Prevent bounce scroll on iOS */
 html, body {

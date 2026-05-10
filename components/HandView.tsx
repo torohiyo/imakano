@@ -49,9 +49,7 @@ export default function HandView({ cards, onTap, onDropPlay, unplayableTypes, un
     };
   }, [drag, onDropPlay]);
 
-  if (cards.length === 0) {
-    return <div className="text-center text-gray-700 py-4 text-xs">手札なし</div>;
-  }
+  if (cards.length === 0) return null;
 
   return (
     <>

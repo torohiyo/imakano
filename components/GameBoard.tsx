@@ -154,6 +154,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
   const [isDragOver, setIsDragOver] = useState(false);
   const [boardDims, setBoardDims] = useState<{ w: number; h: number } | null>(null);
   const [modalDelay, setModalDelay] = useState(false);
+  const [showStuckRecovery, setShowStuckRecovery] = useState(false);
   const animSeq = useRef(0);
   const prevStateRef = useRef<GameState>(state);
   const initialTurnShown = useRef(false);
@@ -183,6 +184,23 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
     }
     prevPhaseRef.current = state.phase;
   }, [state.phase]);
+
+  // Stuck detection: show recovery button after 8s of unresolved human-interactive pending
+  useEffect(() => {
+    const p = state.pending;
+    if (!p) { setShowStuckRecovery(false); return; }
+    const needsAction = (() => {
+      if (p.type === 'DEFENSE_REACTION') return p.targetIdx === myPlayerIdx;
+      if (p.type === 'DISCARD') return (state.pendingTargetIdx ?? state.currentPlayerIndex) === myPlayerIdx;
+      if (['PEEK_STEAL', 'PEEK_TRASH', 'VIEW_SELECT', 'VIEW_SELECT_SPECIALS', 'UTSU_NOVEL_CHOICE'].includes(p.type))
+        return state.currentPlayerIndex === myPlayerIdx;
+      return false;
+    })();
+    if (!needsAction) { setShowStuckRecovery(false); return; }
+    setShowStuckRecovery(false);
+    const t = setTimeout(() => setShowStuckRecovery(true), 8000);
+    return () => clearTimeout(t);
+  }, [state.pending, state.currentPlayerIndex, state.pendingTargetIdx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // VIEW_SELECT/VIEW_SELECT_SPECIALS はカードプレイアニメ後にモーダルを表示
   useEffect(() => {
@@ -299,6 +317,21 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
     }
   });
 
+  function forceResolve() {
+    const p = state.pending;
+    if (!p) return;
+    setShowStuckRecovery(false);
+    switch (p.type) {
+      case 'DEFENSE_REACTION': dispatch({ type: 'SKIP_DEFENSE' }); break;
+      case 'DISCARD': dispatch({ type: 'RESOLVE_DISCARD', discardedIds: [] }); break;
+      case 'PEEK_STEAL': dispatch({ type: 'RESOLVE_PEEK_STEAL', stolenIds: [] }); break;
+      case 'PEEK_TRASH': dispatch({ type: 'RESOLVE_PEEK_TRASH', trashedId: null }); break;
+      case 'VIEW_SELECT': dispatch({ type: 'RESOLVE_VIEW_SELECT', keptIds: [] }); break;
+      case 'VIEW_SELECT_SPECIALS': dispatch({ type: 'RESOLVE_VIEW_SELECT_SPECIALS', keptIds: [] }); break;
+      case 'UTSU_NOVEL_CHOICE': dispatch({ type: 'RESOLVE_UTSU_NOVEL', returnToHand: false }); break;
+    }
+  }
+
   const canUseSkill = !!(isMyTurn
     && myPlayer.imakano.skillKey
     && !myPlayer.skillUsedThisTurn
@@ -410,8 +443,13 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
     state.pending?.type !== 'PASS_DEVICE' &&
     state.pending?.type !== 'SELECT_TARGET';
 
+  const highPriorityModal = showInteractionModal && (
+    state.pending?.type === 'DISCARD' ||
+    state.pending?.type === 'PEEK_STEAL' ||
+    state.pending?.type === 'PEEK_TRASH'
+  );
   let overlayContent: React.ReactNode = null;
-  if (showInteractionModal && state.pending?.type === 'DISCARD') {
+  if (highPriorityModal) {
     overlayContent = (
       <div style={{
         position: 'absolute', inset: 0, zIndex: 50,
@@ -448,23 +486,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
   // ── Main 4-zone grid ──
   return (
     <>
-      {/* Rotate device overlay for portrait mobile */}
-      <div
-        className="portrait-rotate-overlay"
-        style={{
-          display: 'none',
-          position: 'fixed', inset: 0, zIndex: 9999,
-          flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20,
-          background: 'rgba(5,0,15,0.97)',
-        }}
-      >
-        <div style={{ fontSize: 52, transform: 'rotate(-90deg)' }}>📱</div>
-        <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: 18, fontWeight: 700, textAlign: 'center', letterSpacing: '0.04em' }}>
-          デバイスを横向きに<br />してください
-        </p>
-      </div>
-
-      <div
+<div
         style={{
           width: '100vw',
           // JS で取得した window.innerHeight を優先（Chrome iOS等でdvhが不正確な場合の対策）
@@ -510,28 +532,24 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
             <Portrait imakanoId={opponentPlayer.imakano.id} width={portraitSz} />
           )}
 
-          {/* Opponent info */}
-          {opponentPlayer ? (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0 }}>
-              <p style={{ color: 'white', fontWeight: 700, fontSize: 'clamp(11px, 3vw, 15px)', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {opponentPlayer.imakano.name}
-              </p>
-              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 9, lineHeight: 1.2 }}>{opponentPlayer.name}</p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
+          <div style={{ flex: 1 }} />
+
+          {/* Opponent HP + hand count */}
+          {opponentPlayer && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ fontSize: 'clamp(20px, 5.5vw, 30px)', fontWeight: 800, color: opponentHpColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
                   {opponentPlayer.happiness}
                 </span>
                 <span style={{ color: '#f9a8d4', fontSize: 'clamp(13px, 3.5vw, 19px)', lineHeight: 1 }}>♥</span>
               </div>
-              <div style={{ display: 'flex', gap: 2, marginTop: 2 }}>
+              <div style={{ display: 'flex', gap: 2 }}>
                 {Array.from({ length: Math.min(opponentPlayer.hand.length, 8) }, (_, i) => (
                   <div key={i} style={{ width: 5, height: 8, borderRadius: 1, background: 'rgba(148,163,184,0.35)', border: '1px solid rgba(255,255,255,0.08)' }} />
                 ))}
                 {opponentPlayer.hand.length > 8 && <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 8, marginLeft: 1 }}>+{opponentPlayer.hand.length - 8}</span>}
               </div>
             </div>
-          ) : (
-            <div style={{ flex: 1 }} />
           )}
 
           {/* East/West side player indicators (4p) */}
@@ -709,17 +727,13 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
                 <Portrait imakanoId={myPlayer.imakano.id} width={portraitSz} skillRing={canUseSkill} skillLabel={canUseSkill} />
               </button>
 
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0 }}>
-                <p style={{ color: 'white', fontWeight: 700, fontSize: 'clamp(11px, 3vw, 15px)', lineHeight: 1.1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {myPlayer.imakano.name}
-                </p>
-                <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: 9, lineHeight: 1.2 }}>{myPlayer.name}</p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 1 }}>
-                  <span style={{ fontSize: 'clamp(22px, 6vw, 34px)', fontWeight: 800, color: myHpColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 18px ${myHpColor}60` }}>
-                    {myPlayer.happiness}
-                  </span>
-                  <img src="/icons/icon-heart.png" alt="♥" style={{ width: 'clamp(15px, 4vw, 22px)', height: 'clamp(15px, 4vw, 22px)' }} draggable={false} />
-                </div>
+              <div style={{ flex: 1 }} />
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                <span style={{ fontSize: 'clamp(22px, 6vw, 34px)', fontWeight: 800, color: myHpColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 18px ${myHpColor}60` }}>
+                  {myPlayer.happiness}
+                </span>
+                <img src="/icons/icon-heart.png" alt="♥" style={{ width: 'clamp(15px, 4vw, 22px)', height: 'clamp(15px, 4vw, 22px)' }} draggable={false} />
               </div>
 
               {!isMyTurn && (
@@ -791,6 +805,35 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           events={animEvents}
           onDone={id => setAnimEvents(prev => prev.filter(e => e.id !== id))}
         />
+
+        {/* ── Stuck recovery ── */}
+        {showStuckRecovery && (
+          <div style={{
+            position: 'absolute', right: 12,
+            bottom: 'max(80px, calc(env(safe-area-inset-bottom, 0px) + 72px))',
+            zIndex: 60, pointerEvents: 'auto',
+          }}>
+            <div style={{
+              background: 'rgba(0,0,0,0.88)', border: '1px solid rgba(251,146,60,0.5)',
+              borderRadius: 10, padding: '8px 12px',
+              boxShadow: '0 0 16px rgba(251,146,60,0.2)',
+            }}>
+              <p style={{ color: 'rgba(251,146,60,0.85)', fontSize: 10, fontWeight: 700, marginBottom: 6, textAlign: 'center', letterSpacing: '0.05em' }}>
+                処理が止まっています
+              </p>
+              <button
+                onClick={forceResolve}
+                style={{
+                  display: 'block', width: '100%', padding: '6px 14px', borderRadius: 7,
+                  background: 'rgba(251,146,60,0.12)', border: '1px solid rgba(251,146,60,0.4)',
+                  color: 'rgba(251,146,60,0.9)', fontSize: 11, fontWeight: 700,
+                }}
+              >
+                スキップして続ける
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );

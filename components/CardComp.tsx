@@ -38,12 +38,6 @@ export default function CardComp({ card, selected, dimmed, size = 'md' }: Props)
         className="w-full h-full object-cover"
         draggable={false}
       />
-      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent pt-6 pb-1 px-1">
-        <p className={`text-white font-bold text-center leading-tight ${nameText}`}>{card.def.name}</p>
-      </div>
-      <div className={`absolute top-1 left-1 rounded font-bold leading-none ${cfg.badge} ${badgeText}`}>
-        {cfg.label}
-      </div>
     </div>
   );
 }
