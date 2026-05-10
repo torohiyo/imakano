@@ -474,17 +474,25 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           borderBottom: '1px solid rgba(255,255,255,0.06)',
           boxSizing: 'border-box', overflow: 'hidden',
         }}>
-          {/* Character image */}
+          {/* Character image + HP — centered as a unit */}
           {opponentPlayer && (
-            <img
-              src={`/frames/${opponentPlayer.imakano.id}.png`}
-              alt="" draggable={false}
-              style={{
-                height: '92%', width: 'auto', objectFit: 'contain',
-                filter: 'drop-shadow(0 2px 16px rgba(0,0,0,0.75))',
-                pointerEvents: 'none',
-              }}
-            />
+            <>
+              <img
+                src={`/frames/${opponentPlayer.imakano.id}.png`}
+                alt="" draggable={false}
+                style={{
+                  height: '82%', width: 'auto', objectFit: 'contain',
+                  filter: 'drop-shadow(0 2px 16px rgba(0,0,0,0.75))',
+                  pointerEvents: 'none',
+                }}
+              />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 14 }}>
+                <span style={{ fontSize: 'clamp(28px, 7vw, 46px)', fontWeight: 800, color: opponentHpColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 20px ${opponentHpColor}70` }}>
+                  {opponentPlayer.happiness}
+                </span>
+                <span style={{ color: '#f9a8d4', fontSize: 'clamp(18px, 4.5vw, 28px)', lineHeight: 1 }}>♥</span>
+              </div>
+            </>
           )}
 
           {/* Deck/Grave - top-left */}
@@ -496,26 +504,6 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
               <GraveIcon /><span style={{ color: 'white', fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{state.trash.length}</span>
             </div>
           </div>
-
-          {/* HP - bottom-right */}
-          {opponentPlayer && (
-            <div style={{ position: 'absolute', bottom: 8, right: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ fontSize: 'clamp(22px, 5.5vw, 36px)', fontWeight: 800, color: opponentHpColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 18px ${opponentHpColor}60` }}>
-                {opponentPlayer.happiness}
-              </span>
-              <span style={{ color: '#f9a8d4', fontSize: 'clamp(14px, 3.5vw, 22px)', lineHeight: 1 }}>♥</span>
-            </div>
-          )}
-
-          {/* Hand count - bottom-left */}
-          {opponentPlayer && (
-            <div style={{ position: 'absolute', bottom: 10, left: 10, display: 'flex', gap: 2, alignItems: 'center' }}>
-              {Array.from({ length: Math.min(opponentPlayer.hand.length, 8) }, (_, i) => (
-                <div key={i} style={{ width: 5, height: 8, borderRadius: 1, background: 'rgba(148,163,184,0.35)', border: '1px solid rgba(255,255,255,0.08)' }} />
-              ))}
-              {opponentPlayer.hand.length > 8 && <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 8, marginLeft: 1 }}>+{opponentPlayer.hand.length - 8}</span>}
-            </div>
-          )}
 
           {/* Log button - top-right */}
           <button
@@ -655,7 +643,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
             </div>
           ) : (
             <>
-              {/* Character image - centered, tappable for skill */}
+              {/* Character image + HP — centered as a unit */}
               <button
                 onClick={canUseSkill ? () => {
                   pushAnim({
@@ -667,7 +655,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
                   });
                 } : undefined}
                 disabled={!canUseSkill}
-                style={{ height: '92%', display: 'flex', alignItems: 'center', position: 'relative', cursor: canUseSkill ? 'pointer' : 'default' }}
+                style={{ height: '82%', display: 'flex', alignItems: 'center', position: 'relative', cursor: canUseSkill ? 'pointer' : 'default' }}
               >
                 <img
                   src={`/frames/${myPlayer.imakano.id}.png`}
@@ -684,13 +672,11 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
                   <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', borderRadius: 6, boxShadow: '0 0 0 2px rgba(250,200,50,0.7), 0 0 24px rgba(250,200,50,0.35)' }} />
                 )}
               </button>
-
-              {/* HP - bottom-right */}
-              <div style={{ position: 'absolute', bottom: 8, right: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontSize: 'clamp(22px, 6vw, 36px)', fontWeight: 800, color: myHpColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 18px ${myHpColor}60` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 14 }}>
+                <span style={{ fontSize: 'clamp(28px, 7vw, 46px)', fontWeight: 800, color: myHpColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 20px ${myHpColor}70` }}>
                   {myPlayer.happiness}
                 </span>
-                <img src="/icons/icon-heart.png" alt="♥" style={{ width: 'clamp(16px, 4vw, 24px)', height: 'clamp(16px, 4vw, 24px)' }} draggable={false} />
+                <img src="/icons/icon-heart.png" alt="♥" style={{ width: 'clamp(18px, 4.5vw, 28px)', height: 'clamp(18px, 4.5vw, 28px)' }} draggable={false} />
               </div>
 
               {/* Not my turn - top-right */}
