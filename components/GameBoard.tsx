@@ -477,7 +477,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           {/* Character image */}
           {opponentPlayer && (
             <img
-              src={`/imakano/${opponentPlayer.imakano.id}.png`}
+              src={`/frames/${opponentPlayer.imakano.id}.png`}
               alt="" draggable={false}
               style={{
                 height: '92%', width: 'auto', objectFit: 'contain',
@@ -670,7 +670,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
                 style={{ height: '92%', display: 'flex', alignItems: 'center', position: 'relative', cursor: canUseSkill ? 'pointer' : 'default' }}
               >
                 <img
-                  src={`/imakano/${myPlayer.imakano.id}.png`}
+                  src={`/frames/${myPlayer.imakano.id}.png`}
                   alt="" draggable={false}
                   style={{
                     height: '100%', width: 'auto', objectFit: 'contain',
