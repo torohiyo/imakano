@@ -315,6 +315,9 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
     if (c.def.effectKey === 'marriage' && myPlayer.happiness < MARRIAGE_VICTORY_THRESHOLD) {
       unplayableIds.add(c.instanceId);
     }
+    if (c.def.effectKey === 'father' && myPlayer.happiness < 7) {
+      unplayableIds.add(c.instanceId);
+    }
   });
 
   function forceResolve() {

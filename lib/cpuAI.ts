@@ -43,7 +43,7 @@ function playScore(card: CardInstance, state: GameState, cpuIdx: number): number
       return opp.happiness >= 3 ? 54 : 18;
     case 'letter':      return 58;
     case 'bestfriend':  return 50;
-    case 'father':      return cpu.happiness >= 7 ? 68 : 12;
+    case 'father':      return cpu.happiness >= 7 ? 68 : -1;
     case 'pet':         return 40;
     case 'sister':      return 36;
     case 'utsu_novel':
