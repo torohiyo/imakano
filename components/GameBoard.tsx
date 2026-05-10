@@ -30,43 +30,6 @@ function ScrollIcon() {
   return <img src="/icons/icon-scroll.png" alt="" style={{ width: 14, height: 14 }} draggable={false} />;
 }
 
-// ── Portrait ─────────────────────────────────────────────────────────────────
-function Portrait({
-  imakanoId, width, skillRing = false, attackRing = false, skillLabel = false,
-}: {
-  imakanoId: string; width: number;
-  skillRing?: boolean; attackRing?: boolean; skillLabel?: boolean;
-}) {
-  const height = Math.round(width * 1.25);
-  const border = attackRing
-    ? '2px solid rgba(220,38,38,0.9)'
-    : '2px solid rgba(196,155,60,0.85)';
-  const boxShadow = attackRing
-    ? '0 0 0 1px rgba(220,38,38,0.4), 0 0 18px rgba(220,38,38,0.6)'
-    : skillRing
-    ? '0 0 0 1px rgba(250,200,50,0.5), 0 0 20px rgba(250,200,50,0.55), inset 0 0 0 1px rgba(255,220,100,0.2)'
-    : '0 0 0 1px rgba(120,90,30,0.4), 0 4px 20px rgba(0,0,0,0.6)';
-  return (
-    <div style={{
-      flexShrink: 0, width, height, borderRadius: 7,
-      overflow: 'hidden',
-      backgroundImage: `url('/imakano/${imakanoId}.png')`,
-      backgroundSize: 'cover', backgroundPosition: 'top center',
-      border, boxShadow, position: 'relative',
-    }}>
-      {skillLabel && (
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0,
-          paddingBottom: 2, paddingTop: 8, textAlign: 'center',
-          background: 'linear-gradient(to top, rgba(160,110,0,0.9), transparent)',
-          pointerEvents: 'none',
-        }}>
-          <span style={{ color: '#fef3c7', fontSize: 8, fontWeight: 700, letterSpacing: '0.12em' }}>SKILL</span>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ── Card zoom overlay ─────────────────────────────────────────────────────────
 function CardZoomOverlay({ card, actionLabel, onAction, onClose }: {
@@ -175,7 +138,6 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
 
   const boardHeight = boardDims?.h ?? null;
   const isLandscape = boardDims ? boardDims.w > boardDims.h : true;
-  const portraitSz = isLandscape ? 32 : 44;
 
   // defenseフェーズを抜けたときズームを強制クリア（DISCARDモーダルが埋もれるのを防ぐ）
   useEffect(() => {
@@ -221,15 +183,10 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
   const currentPlayer = state.players[cur];
   const isMyTurn = cur === myPlayerIdx;
 
-  const northIdx = n === 2 ? (myPlayerIdx + 1) % n : n >= 3 ? (myPlayerIdx + 2) % n : -1;
-  const eastIdx  = n >= 3 ? (myPlayerIdx + 1) % n : -1;
-  const westIdx  = n >= 4 ? (myPlayerIdx + 3) % n : -1;
+  const northIdx = (myPlayerIdx + 1) % n;
 
   function playerPos(idx: number): AnimPosition {
     if (idx === myPlayerIdx) return 'south';
-    if (idx === northIdx)    return 'north';
-    if (idx === eastIdx)     return 'east';
-    if (idx === westIdx)     return 'west';
     return 'north';
   }
 
@@ -496,7 +453,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
           // boardHeight が null の初回レンダリング時は dvh にフォールバック
           height: boardHeight ? `${boardHeight}px` : '100dvh',
           display: 'grid',
-          gridTemplateRows: isLandscape ? '13% 26% 13% 48%' : '16% 30% 14% 40%',
+          gridTemplateRows: isLandscape ? '25% 12% 25% 38%' : '18% 26% 18% 38%',
           overflow: 'hidden',
           position: 'relative',
           backgroundImage: 'url(/board-bg.png)',
@@ -508,76 +465,64 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
         }}
         className="game-board-root"
       >
-        {/* ── Zone 1: Opponent HUD ── */}
+        {/* ── Zone 1: Opponent ── */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          // 上: iOSステータスバー分（ノッチなしでも0pxになる）
+          position: 'relative',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
           paddingTop: 'env(safe-area-inset-top, 0px)',
-          paddingLeft: 10, paddingRight: 10,
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0.78), rgba(0,0,0,0.45))',
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.72), rgba(0,0,0,0.38))',
           borderBottom: '1px solid rgba(255,255,255,0.06)',
-          boxSizing: 'border-box',
+          boxSizing: 'border-box', overflow: 'hidden',
         }}>
-          {/* Deck / Grave counts */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', borderRadius: 6, background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <DeckIcon />
-              <span style={{ color: 'white', fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{state.deck.length}</span>
+          {/* Character image */}
+          {opponentPlayer && (
+            <img
+              src={`/imakano/${opponentPlayer.imakano.id}.png`}
+              alt="" draggable={false}
+              style={{
+                height: '92%', width: 'auto', objectFit: 'contain',
+                filter: 'drop-shadow(0 2px 16px rgba(0,0,0,0.75))',
+                pointerEvents: 'none',
+              }}
+            />
+          )}
+
+          {/* Deck/Grave - top-left */}
+          <div style={{ position: 'absolute', top: 6, left: 10, display: 'flex', gap: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 5px', borderRadius: 5, background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <DeckIcon /><span style={{ color: 'white', fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{state.deck.length}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 6px', borderRadius: 6, background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <GraveIcon />
-              <span style={{ color: 'white', fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{state.trash.length}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 5px', borderRadius: 5, background: 'rgba(0,0,0,0.6)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              <GraveIcon /><span style={{ color: 'white', fontSize: 11, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{state.trash.length}</span>
             </div>
           </div>
 
-          {/* Opponent portrait */}
-          {opponentPlayer && northIdx >= 0 && (
-            <Portrait imakanoId={opponentPlayer.imakano.id} width={portraitSz} />
-          )}
-
-          <div style={{ flex: 1 }} />
-
-          {/* Opponent HP + hand count */}
+          {/* HP - bottom-right */}
           {opponentPlayer && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2, flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontSize: 'clamp(20px, 5.5vw, 30px)', fontWeight: 800, color: opponentHpColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
-                  {opponentPlayer.happiness}
-                </span>
-                <span style={{ color: '#f9a8d4', fontSize: 'clamp(13px, 3.5vw, 19px)', lineHeight: 1 }}>♥</span>
-              </div>
-              <div style={{ display: 'flex', gap: 2 }}>
-                {Array.from({ length: Math.min(opponentPlayer.hand.length, 8) }, (_, i) => (
-                  <div key={i} style={{ width: 5, height: 8, borderRadius: 1, background: 'rgba(148,163,184,0.35)', border: '1px solid rgba(255,255,255,0.08)' }} />
-                ))}
-                {opponentPlayer.hand.length > 8 && <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 8, marginLeft: 1 }}>+{opponentPlayer.hand.length - 8}</span>}
-              </div>
+            <div style={{ position: 'absolute', bottom: 8, right: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 'clamp(22px, 5.5vw, 36px)', fontWeight: 800, color: opponentHpColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 18px ${opponentHpColor}60` }}>
+                {opponentPlayer.happiness}
+              </span>
+              <span style={{ color: '#f9a8d4', fontSize: 'clamp(14px, 3.5vw, 22px)', lineHeight: 1 }}>♥</span>
             </div>
           )}
 
-          {/* East/West side player indicators (4p) */}
-          {(eastIdx >= 0 || westIdx >= 0) && (
-            <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-              {westIdx >= 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                  <Portrait imakanoId={state.players[westIdx].imakano.id} width={26} />
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 7 }}>W</span>
-                </div>
-              )}
-              {eastIdx >= 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-                  <Portrait imakanoId={state.players[eastIdx].imakano.id} width={26} />
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 7 }}>E</span>
-                </div>
-              )}
+          {/* Hand count - bottom-left */}
+          {opponentPlayer && (
+            <div style={{ position: 'absolute', bottom: 10, left: 10, display: 'flex', gap: 2, alignItems: 'center' }}>
+              {Array.from({ length: Math.min(opponentPlayer.hand.length, 8) }, (_, i) => (
+                <div key={i} style={{ width: 5, height: 8, borderRadius: 1, background: 'rgba(148,163,184,0.35)', border: '1px solid rgba(255,255,255,0.08)' }} />
+              ))}
+              {opponentPlayer.hand.length > 8 && <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 8, marginLeft: 1 }}>+{opponentPlayer.hand.length - 8}</span>}
             </div>
           )}
 
-          {/* Log button */}
+          {/* Log button - top-right */}
           <button
             onClick={() => setShowLog(v => !v)}
             style={{
-              flexShrink: 0, width: 30, height: 30, borderRadius: 8,
+              position: 'absolute', top: 6, right: 10,
+              width: 30, height: 30, borderRadius: 8,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: showLog ? 'rgba(56,189,248,0.15)' : 'rgba(0,0,0,0.5)',
               border: `1px solid ${showLog ? 'rgba(56,189,248,0.3)' : 'rgba(255,255,255,0.07)'}`,
@@ -679,8 +624,7 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
         {/* ── Zone 3: My HUD ── */}
         <div style={{
           position: 'relative',
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '0 12px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: isMyTurn
             ? 'linear-gradient(to top, rgba(8,40,60,0.55), rgba(8,40,60,0.3))'
             : 'linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0.3))',
@@ -690,15 +634,13 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
         }}>
           {isDefenseTarget && state.pending?.type === 'DEFENSE_REACTION' ? (
             /* Defense mode: attack info + skip button */
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-                <span style={{ fontSize: 16, flexShrink: 0 }}>⚔️</span>
-                <div style={{ minWidth: 0 }}>
-                  <p style={{ color: '#fca5a5', fontSize: 11, fontWeight: 700, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {state.players[state.pending.attackerIdx].name}「{state.pending.attackCard.def.name}」
-                  </p>
-                  <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 9 }}>防御カードをタップして選択</p>
-                </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', width: '100%' }}>
+              <span style={{ fontSize: 16, flexShrink: 0 }}>⚔️</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ color: '#fca5a5', fontSize: 11, fontWeight: 700, lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {state.players[state.pending.attackerIdx].name}「{state.pending.attackCard.def.name}」
+                </p>
+                <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: 9 }}>防御カードをタップして選択</p>
               </div>
               <button
                 onClick={() => dispatch({ type: 'SKIP_DEFENSE' })}
@@ -710,10 +652,10 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
               >
                 防御しない
               </button>
-            </>
+            </div>
           ) : (
-            /* Normal mode: my portrait + HP */
             <>
+              {/* Character image - centered, tappable for skill */}
               <button
                 onClick={canUseSkill ? () => {
                   pushAnim({
@@ -725,22 +667,35 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
                   });
                 } : undefined}
                 disabled={!canUseSkill}
-                style={{ flexShrink: 0, cursor: canUseSkill ? 'pointer' : 'default' }}
+                style={{ height: '92%', display: 'flex', alignItems: 'center', position: 'relative', cursor: canUseSkill ? 'pointer' : 'default' }}
               >
-                <Portrait imakanoId={myPlayer.imakano.id} width={portraitSz} skillRing={canUseSkill} skillLabel={canUseSkill} />
+                <img
+                  src={`/imakano/${myPlayer.imakano.id}.png`}
+                  alt="" draggable={false}
+                  style={{
+                    height: '100%', width: 'auto', objectFit: 'contain',
+                    filter: canUseSkill
+                      ? 'drop-shadow(0 0 16px rgba(250,200,50,0.85)) brightness(1.08)'
+                      : 'drop-shadow(0 2px 16px rgba(0,0,0,0.75))',
+                    transition: 'filter 0.3s',
+                  }}
+                />
+                {canUseSkill && (
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', borderRadius: 6, boxShadow: '0 0 0 2px rgba(250,200,50,0.7), 0 0 24px rgba(250,200,50,0.35)' }} />
+                )}
               </button>
 
-              <div style={{ flex: 1 }} />
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-                <span style={{ fontSize: 'clamp(22px, 6vw, 34px)', fontWeight: 800, color: myHpColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 18px ${myHpColor}60` }}>
+              {/* HP - bottom-right */}
+              <div style={{ position: 'absolute', bottom: 8, right: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: 'clamp(22px, 6vw, 36px)', fontWeight: 800, color: myHpColor, lineHeight: 1, fontVariantNumeric: 'tabular-nums', textShadow: `0 0 18px ${myHpColor}60` }}>
                   {myPlayer.happiness}
                 </span>
-                <img src="/icons/icon-heart.png" alt="♥" style={{ width: 'clamp(15px, 4vw, 22px)', height: 'clamp(15px, 4vw, 22px)' }} draggable={false} />
+                <img src="/icons/icon-heart.png" alt="♥" style={{ width: 'clamp(16px, 4vw, 24px)', height: 'clamp(16px, 4vw, 24px)' }} draggable={false} />
               </div>
 
+              {/* Not my turn - top-right */}
               {!isMyTurn && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+                <div style={{ position: 'absolute', top: 8, right: 10, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
                   {afkSecondsLeft !== null ? (
                     <span style={{ color: '#f87171', fontSize: 10, fontWeight: 700 }} className="animate-pulse">失格まで {afkSecondsLeft}秒</span>
                   ) : (
@@ -755,7 +710,6 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
                       離席警告
                     </button>
                   )}
-                  <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: 9 }} className="animate-pulse">{currentPlayer.name}のターン</p>
                 </div>
               )}
             </>
