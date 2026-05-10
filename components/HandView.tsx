@@ -16,9 +16,10 @@ interface Props {
   onDropPlay?: (card: CardInstance) => void;
   unplayableTypes?: Set<string>;
   unplayableIds?: Set<string>;
+  size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
-export default function HandView({ cards, onTap, onDropPlay, unplayableTypes, unplayableIds }: Props) {
+export default function HandView({ cards, onTap, onDropPlay, unplayableTypes, unplayableIds, size = 'xl' }: Props) {
   const [drag, setDrag] = useState<DragState | null>(null);
   const touchStartY = useRef(0);
 
@@ -82,7 +83,7 @@ export default function HandView({ cards, onTap, onDropPlay, unplayableTypes, un
                 e.dataTransfer.effectAllowed = 'move';
               }}
             >
-              <CardComp card={card} dimmed={isUnplayable} size="sm" />
+              <CardComp card={card} dimmed={isUnplayable} size={size} />
             </button>
           );
         })}
@@ -101,7 +102,7 @@ export default function HandView({ cards, onTap, onDropPlay, unplayableTypes, un
             filter: 'drop-shadow(0 8px 24px rgba(0,0,0,0.6))',
           }}
         >
-          <CardComp card={drag.card} size="sm" />
+          <CardComp card={drag.card} size={size} />
         </div>
       )}
     </>

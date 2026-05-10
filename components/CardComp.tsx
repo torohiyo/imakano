@@ -12,13 +12,14 @@ const SIZES = {
   sm: { w: 68,  h: 96,  nameText: 'text-[9px]',  badgeText: 'text-[7px] px-1 py-0.5',   lift: -10 },
   md: { w: 120, h: 168, nameText: 'text-xs',      badgeText: 'text-[9px] px-1.5 py-0.5', lift: -12 },
   lg: { w: 200, h: 280, nameText: 'text-sm',      badgeText: 'text-xs px-2 py-1',         lift: -14 },
+  xl: { w: 188, h: 264, nameText: 'text-sm',      badgeText: 'text-xs px-2 py-1',         lift: -28 },
 };
 
 interface Props {
   card: CardInstance;
   selected?: boolean;
   dimmed?: boolean;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
 export default function CardComp({ card, selected, dimmed, size = 'md' }: Props) {
