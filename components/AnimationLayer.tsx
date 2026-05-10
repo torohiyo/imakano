@@ -307,6 +307,7 @@ export default function AnimationLayer({ events, onDone }: Props) {
                 heroineType={ev.heroineType}
                 heroineName={ev.heroineName}
                 skillName={ev.skillName}
+                onActivate={ev.onActivate}
                 onComplete={done}
               />
             );

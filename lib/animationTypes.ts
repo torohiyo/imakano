@@ -13,6 +13,6 @@ export type AnimEventPayload =
   | { type: 'YOUR_TURN' }
   | { type: 'OPPONENT_TURN' }
   | { type: 'DAMAGE_FLASH' }
-  | { type: 'SKILL_CUTIN'; heroineType: HeroineType; heroineName: string; skillName: string };
+  | { type: 'SKILL_CUTIN'; heroineType: HeroineType; heroineName: string; skillName: string; onActivate?: () => void };
 
 export type AnimationEvent = AnimEventPayload & { id: number };

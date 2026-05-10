@@ -700,8 +700,8 @@ export default function GameBoard({ state, dispatch, myPlayerIdx, afkWarningEnd,
                     heroineType: myPlayer.imakano.id as HeroineType,
                     heroineName: myPlayer.imakano.name,
                     skillName: myPlayer.imakano.skillName ?? 'スキル',
+                    onActivate: () => dispatch({ type: 'USE_SKILL' }),
                   });
-                  setTimeout(() => dispatch({ type: 'USE_SKILL' }), 1000);
                 } : undefined}
                 disabled={!canUseSkill}
                 style={{ flexShrink: 0, cursor: canUseSkill ? 'pointer' : 'default' }}
